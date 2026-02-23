@@ -1,0 +1,6 @@
+@import "../styles/EmailSettings.css";
+
+/* Page wrapper */
+.sms-settings-page {
+  padding: 32px;
+}

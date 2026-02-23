@@ -1,0 +1,226 @@
+/* ===== ROOT THEME ===== */
+:root {
+  --bg-main: #f2f5fb;
+  --card-bg: rgba(255, 255, 255, 0.92);
+  --border-soft: rgba(0, 0, 0, 0.06);
+  --text-dark: #1f2937;
+  --text-muted: #6b7280;
+
+  --blue: #2563eb;
+  --green: #16a34a;
+  --purple: #7c3aed;
+  --pink: #db2777;
+  --gold: #c9a227;
+}
+
+/* ===== PAGE ===== */
+.email-settings-page {
+  padding: 32px;
+  background: linear-gradient(180deg, #f6f8fc, #eef2f7);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* ===== TITLES ===== */
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-dark);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ===== CARD ===== */
+.card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 30px;
+  border: 1px solid var(--border-soft);
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ===== CARD HEADER ===== */
+.card-header {
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 14px;
+  margin-bottom: 22px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Premium Gradients */
+.blue {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+.green {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+.pink {
+  background: linear-gradient(135deg, #db2777, #f472b6);
+}
+.gradient {
+  background: linear-gradient(135deg, #7c3aed, #6366f1);
+}
+
+/* ===== FORM GRID ===== */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+  display: block;
+  letter-spacing: 0.3px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  color: var(--text-dark);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Focus = Premium */
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #fff;
+}
+
+/* ===== CHECKBOX ===== */
+.checkbox,
+.automation label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-dark);
+  margin: 12px 0;
+}
+
+.checkbox input,
+.automation input {
+  accent-color: var(--blue);
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 11px 22px;
+  border-radius: 14px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn.blue {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+}
+
+.btn.green {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(22, 163, 74, 0.25);
+}
+
+.btn.outline {
+  background: #fff;
+  color: var(--blue);
+  border: 1px solid var(--border-soft);
+}
+
+/* No jump hover (luxury rule) */
+.btn:hover {
+  filter: brightness(1.05);
+}
+
+/* ===== BUTTON ROW ===== */
+.btn-row {
+  display: flex;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+/* ===== TEMPLATE CARDS ===== */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.template-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6));
+  border-radius: 16px;
+  padding: 18px;
+  border: 1px solid var(--border-soft);
+}
+
+.template-card h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+/* Status */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+/* ===== AUTOMATION SECTION ===== */
+.automation {
+  background: rgba(243, 244, 246, 0.7);
+  border-radius: 14px;
+  padding: 18px;
+  border: 1px dashed var(--border-soft);
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+  .grid-2,
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+}

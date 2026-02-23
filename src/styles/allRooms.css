@@ -1,0 +1,131 @@
+.view-rooms-page {
+  padding: 24px;
+  background: #f1f5f9;
+}
+
+.filter-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.filter-row input,
+.filter-row select {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  flex: 1;
+}
+
+.filter-row button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: #020e29;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.filter-row button:hover {
+  background: #1d4ed8;
+}
+
+
+.property-section {
+  background: white;
+  padding: 18px;
+  border-radius: 14px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.property-section h3 {
+  margin-bottom: 12px;
+}
+
+.property-section span {
+  font-size: 13px;
+  color: #64748b;
+  margin-left: 8px;
+}
+
+
+.rooms-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rooms-table th {
+  background: #f8fafc;
+  text-align: left;
+  padding: 12px;
+}
+
+.rooms-table td {
+  padding: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.status {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status.available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.booked {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ===== View Button ===== */
+.view-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #061f56;
+  color: white;
+  cursor: pointer;
+}
+
+/* ===== Hover Effect ===== */
+.rooms-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+@media (max-width: 768px) {
+  .rooms-table,
+  .rooms-table thead,
+  .rooms-table tbody,
+  .rooms-table th,
+  .rooms-table td,
+  .rooms-table tr {
+    display: block;
+  }
+
+  .rooms-table tr {
+    margin-bottom: 15px;
+  }
+
+  .rooms-table td {
+    text-align: right;
+    padding-left: 50%;
+    position: relative;
+  }
+
+  .rooms-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 10px;
+    width: 45%;
+    text-align: left;
+    font-weight: 600;
+  }
+}

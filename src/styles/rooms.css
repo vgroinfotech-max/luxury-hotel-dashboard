@@ -1,0 +1,114 @@
+.room-page {
+  background: #f5f7fa;
+  padding: 24px;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.room-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.status.available { background: #d4f5e3; color: #0f8a4b; }
+.status.booked { background: #ffd6d6; color: #b30000; }
+.status.hold { background: #ffe5b4; }
+
+.price {
+  font-size: 22px;
+  font-weight: bold;
+  margin: 14px 0;
+  color: #1f3c88;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.primary { background: #1f3c88; color: white; }
+.secondary { background: #e0e0e0; }
+.danger { background: #ffcccc; color: #b00000; }
+
+.calendar {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.day {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.day.available { background: #d4f5e3; }
+.day.booked { background: #ffd6d6; }
+.day.hold { background: #ffe5b4; }
+
+.amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.amenity {
+  background: #eef2f7;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.gallery {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.gallery img {
+  border-radius: 8px;
+  transition: transform 0.3s;
+}
+
+.gallery img:hover {
+  transform: scale(1.05);
+}
+
+.view360 {
+  margin-top: 12px;
+  background: #f4b400;
+  width: 100%;
+  font-weight: bold;
+}

@@ -1,0 +1,91 @@
+.edit-room-page {
+  max-width: 700px;
+  margin: 40px auto;
+  padding: 30px 20px;
+  background: #f9f9f9;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  font-family: "Poppins", sans-serif;
+}
+
+.edit-room-page h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 28px;
+  color: #333;
+}
+
+.edit-room-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.edit-room-form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  color: #444;
+  font-size: 14px;
+}
+
+.edit-room-form input[type="text"],
+.edit-room-form input[type="number"],
+.edit-room-form select {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  outline: none;
+  font-size: 14px;
+  transition: border 0.2s;
+}
+
+.edit-room-form input:focus,
+.edit-room-form select:focus {
+  border-color: #6c63ff;
+}
+
+.edit-room-form input[type="checkbox"] {
+  width: auto;
+  margin-top: 10px;
+}
+
+.save-btn {
+  margin-top: 10px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  background: #6c63ff;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.save-btn:hover {
+  background: #574fd6;
+}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 480px) {
+  .edit-room-page {
+    margin: 20px;
+    padding: 20px;
+  }
+
+  .edit-room-page h2 {
+    font-size: 24px;
+  }
+
+  .edit-room-form input,
+  .edit-room-form select {
+    font-size: 13px;
+  }
+
+  .save-btn {
+    font-size: 14px;
+    padding: 10px;
+  }
+}
