@@ -19,6 +19,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import Tooltip from "../components/common/Tooltip";
 import { TOOLTIP_TEXT } from "../data/toolTip";
 import { useLanguage } from "../context/LanguageContext";
+import ComplianceDashboard from "../compliance/pages/ComplianceDashboard";
 
 export default function Sidebar() {
   const { language } = useLanguage();
@@ -82,7 +83,7 @@ superAdmin: "Super Admin",
       violations: "Violations",
       auditTimeline: "Audit Timeline",
       complianceReports: "Compliance Reports",
-
+      complianceDashboard:"Compliance Dashboard",
   logout: "Logout",
 },
 
@@ -424,6 +425,9 @@ superAdmin: "المشرف العام",
               <li><NavLink to="/compliance/violations">{t.violations}</NavLink></li>
               <li><NavLink to="/compliance/audit">{t.auditTimeline}</NavLink></li>
               <li><NavLink to="/compliance/reports">{t.complianceReports}</NavLink></li>
+              <li>
+ <NavLink to="/compliance/dashboard">{t.complianceDashboard}</NavLink>
+</li>
             </ul>
           )}
         </li>

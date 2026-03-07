@@ -23,7 +23,7 @@ export default function ComplianceRoutes({ currentUser = {} }) {
         <Route path="register" element={<Register />} />
         <Route path="evidence" element={<Evidence />} />
         <Route path="violations" element={<Violations />} />
-        <Route path="complianceDashboard" element={<ComplianceDashboard />} />
+        <Route path="dashboard" element={<ComplianceDashboard />} />
         <Route path="audit" element={<Audit />} />
         <Route path="reports" element={<Reports />} />
       </Routes>
