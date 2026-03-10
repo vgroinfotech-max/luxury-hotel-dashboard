@@ -1,9 +1,10 @@
-import StatsCards from "../components/StatsCards";
-import Operations from "../components/Operations";
+import OccupancyCards from "../components/Occupancy";
+
 import Performance from "../components/Performance";
 import CustomSection from "../components/CustomSection";
 import Tooltip from "../components/common/Tooltip";
 import "../styles/dashboard.css";
+import Housekeeping from "../components/HouseKeepingDashboard";
 
 const Dashboard = () => {
   return (
@@ -15,8 +16,9 @@ const Dashboard = () => {
         
       </h2>
 
-      <StatsCards />
-      <Operations />
+      <OccupancyCards/>
+<Housekeeping/>
+     
       <Performance />
       <CustomSection />
 
