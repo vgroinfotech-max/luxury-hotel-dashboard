@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify,request
 from flask_cors import CORS
 from database import get_db_connection
 
@@ -157,9 +157,144 @@ def alerts():
     db.close()
 
     return jsonify(alerts)
+from datetime import timedelta
 
+@app.route("/api/occupancy", methods=["GET"])
+def occupancy():
 
-# ================= RUN SERVER =================
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
 
+    query = """
+    SELECT 
+        r.no AS room,
+        ra.date,
+        CASE 
+            WHEN ra.is_available = 1 THEN 'available'
+            ELSE 'occupied'
+        END AS status
+    FROM room_availability ra
+    JOIN room r ON r.no = ra.room_id
+    WHERE ra.date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+    ORDER BY r.no, ra.date
+    """
+
+    cursor.execute(query)
+    data = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+
+    return jsonify(data)
+
+@app.route("/api/reservations", methods=["GET"])
+def get_reservations():
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT 
+            reservation_id,
+            guestName,
+            roomType,
+            rooms,
+            guests,
+            checkIn,
+            checkOut,
+            vip,
+            status,
+            room_id
+        FROM reservations
+    """)
+
+    rows = cursor.fetchall()
+
+    data = []
+    for row in rows:
+        # calculate nights
+        nights = 0
+        if row["checkIn"] and row["checkOut"]:
+            nights = (row["checkOut"] - row["checkIn"]).days
+
+        data.append({
+            "id": row["reservation_id"],
+            "guestName": row["guestName"],
+            "roomNumber": row["room_id"],  # using room_id
+            "roomType": row["roomType"],
+            "checkIn": str(row["checkIn"]),
+            "checkOut": str(row["checkOut"]),
+            "nights": nights,
+            "source": row["company"] if "company" in row else "Direct",
+            "status": row["status"],
+            "isVIP": bool(row["vip"])
+        })
+
+    cursor.close()
+    db.close()
+
+    return jsonify(data)
+@app.route("/api/reservations", methods=["POST"])
+def add_reservation():
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+    INSERT INTO reservations 
+    (guestName, roomType, rooms, guests, checkIn, checkOut, vip, status, room_id, company)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        data["guestName"],
+        data["roomType"],
+        data.get("rooms", 1),
+        data.get("guests", 1),
+        data["checkIn"],
+        data["checkOut"],
+        int(data.get("isVIP", 0)),
+        data.get("status", "confirmed"),
+        data.get("roomNumber"),
+        data.get("source", "Direct")
+    ))
+
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({"message": "Reservation added"})
+
+@app.route("/api/booking-sources", methods=["GET"])
+def booking_sources():
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT 
+            IFNULL(source, 'Direct') AS source,
+            COUNT(*) as count
+        FROM reservations
+        GROUP BY source
+    """)
+
+    rows = cursor.fetchall()
+
+    total = sum(row["count"] for row in rows)
+
+    data = []
+    for row in rows:
+        percent = round((row["count"] / total) * 100, 1)
+
+        data.append({
+            "source": row["source"],
+            "count": row["count"],
+            "percent": percent
+        })
+
+    cursor.close()
+    db.close()
+
+    return jsonify(data)
+
+    return jsonify(data)    
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,16 +1,40 @@
 :root {
-  --primary: #2563eb;          /* Blue highlight (Dashboard active) */
-  --primary-dark: #1e40af;
-  --accent: #60a5fa;
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface2: #fafaf8;
+  --border: #ebebе5;
+  --border2: #e0e0d8;
+  --text: #1c1c1a;
+  --text2: #4a4a46;
+  --text3: #8a8a84;
+  --text4: #c0c0b8;
+  --green: #1e6b45;
+  --green-bg: #eaf5ef;
+  --green-mid: #2d9e67;
+  --red: #b83232;
+  --red-bg: #fdf0f0;
+  --amber: #c47a1a;
+  --amber-bg: #fef6e7;
+  --blue: #1a5fb4;
+  --blue-bg: #eef3fc;
+  --slate: #4a5568;
+  --slate-bg: #f0f2f5;
+  --purple: #6b3fa0;
+  --purple-bg: #f3eefb;
+  --teal: #1a7a7a;
+  --teal-bg: #e8f5f5;
+  --navy: #1e2a3a;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 4px 16px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+}
 
-  --bg-main: #f5f7fb;          /* Light dashboard background */
-  --bg-sidebar: #0f172a;       /* DARK BLUE sidebar (photo-1) */
-  --bg-card: #ffffff;
-  --bg-soft: #f1f5f9;
-
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --border-soft: #e5e7eb;
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  font-size: 14px;
 }
 /* 🔴 SCROLL FIX PART 1 */
 body {
@@ -26,13 +50,21 @@ body {
   display: flex;
   height: 100vh; /* ✅ fixed viewport height */
 }
-
+/* Isse aapka content poori right side tak phail jayega */
+.dashboard-page, 
+.revenue-grid, 
+.top-header {
+    width: 100% !important;
+    max-width: 100% !important; /* Agar kahin 1200px lock hai toh use tod dega */
+    display: block; 
+}
 /* 🔴 SCROLL FIX PART 3 */
 .main {
   flex: 1;
   padding: 24px;
   height: 100vh;
   overflow-y: auto; 
+  width: 100% !important;
 }
 /* ===== RESET ===== */
 * {
@@ -48,6 +80,38 @@ body {
   color: var(--text-main);
   overflow: hidden;
 }
+.meta-sep { color: var(--border2); }
+
+.topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.btn-ghost {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  box-shadow: var(--shadow-sm);
+}
+.btn-ghost:hover { border-color: var(--text3); color: var(--text); }
+
+.btn-primary {
+  background: var(--navy);
+  color: white;
+  box-shadow: 0 2px 8px rgba(30,42,58,0.25);
+}
+.btn-primary:hover { background: #2d3f55; transform: translateY(-1px); }
 
 /* ===== LAYOUT ===== */
 .layout {
@@ -271,3 +335,339 @@ footer {
   font-size: 10px;
   margin-top: 6px;
 }
+/* ── 10. MINI BOOKING CALENDAR ── */
+.calendar-grid {
+  padding: 16px 20px;
+}
+
+.cal-header {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.cal-day-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text4);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.cal-row {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+  align-items: center;
+}
+
+.cal-room-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text3);
+  font-weight: 500;
+}
+
+.cal-cell {
+  height: 22px;
+  border-radius: 4px;
+  background: var(--bg);
+  position: relative;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.cal-cell:hover { opacity: 0.8; }
+.cal-cell.occ { background: #3b82f6; }
+.cal-cell.occ-vip { background: var(--amber); }
+.cal-cell.empty { background: var(--border); }
+.cal-cell.checkin { background: var(--green-mid); border-radius: 4px 0 0 4px; }
+.cal-cell.checkout { background: #3b82f6; border-radius: 0 4px 4px 0; }
+.cal-cell.today-col { outline: 2px solid var(--text); outline-offset: -2px; }
+
+.cal-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.occ-card:nth-child(1) { animation-delay: 0.05s; }
+.occ-card:nth-child(2) { animation-delay: 0.1s; }
+.occ-card:nth-child(3) { animation-delay: 0.15s; }
+.occ-card:nth-child(4) { animation-delay: 0.2s; }
+.occ-card:nth-child(5) { animation-delay: 0.25s; }
+.occ-card:nth-child(6) { animation-delay: 0.3s; }
+
+.act-card:nth-child(1) { animation-delay: 0.15s; }
+.act-card:nth-child(2) { animation-delay: 0.2s; }
+.act-card:nth-child(3) { animation-delay: 0.25s; }
+.act-card:nth-child(4) { animation-delay: 0.3s; }
+.act-card:nth-child(5) { animation-delay: 0.35s; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.divider { height: 1px; background: var(--border); margin: 4px 0; }
+.cal-cell {
+  border: 2px solid red !important;
+}
+/* ── 5. RESERVATIONS TABLE ── */
+/* ── 5. RESERVATIONS TABLE ── */
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+}
+
+/* TABLE BASE */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* HEADER */
+thead tr {
+  background: var(--surface2);
+}
+
+th {
+  padding: 12px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text4);
+  text-transform: uppercase;
+  text-align: left;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+
+/* BODY */
+td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+/* ROW HOVER */
+tbody tr {
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background: var(--surface2);
+  transform: scale(1.002);   /* 🔥 subtle premium effect */
+}
+
+/* REMOVE LAST BORDER */
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* GUEST */
+.guest-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.guest-meta {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+/* VIP TAG */
+.vip-tag {
+  display: inline-block;
+  background: var(--amber-bg);
+  color: var(--amber);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+/* ROOM SUBTEXT */
+td div {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+/* STATUS PILLS */
+.status-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* COLORS */
+.s-confirmed { background: var(--blue-bg); color: var(--blue); }
+.s-confirmed::before { background: var(--blue); }
+
+.s-vip { background: var(--amber-bg); color: var(--amber); }
+.s-vip::before { background: var(--amber); }
+
+.s-checkin { background: var(--green-bg); color: var(--green); }
+.s-checkin::before { background: var(--green-mid); }
+
+.s-pending { background: var(--slate-bg); color: var(--slate); }
+.s-pending::before { background: #9ca3af; }
+
+.s-noshow { background: var(--red-bg); color: var(--red); }
+.s-noshow::before { background: var(--red); }
+
+.action-btns {
+  display: flex;
+  gap: 6px;
+}
+
+/* BASE BUTTON */
+.action-btn.primary {
+  padding: 2px 8px;          /* 🔥 compact */
+  font-size: 10px;           /* 🔥 small text */
+  border-radius: 6px;
+  font-weight: 600;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* HOVER */
+.action-btn:hover {
+  background: var(--surface2);
+}
+
+/* PRIMARY BUTTON (Check-in) */
+.action-btn.primary {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
+
+.action-btn.primary:hover {
+  background: #2d3f55;
+}
+
+/* CHECK-IN GREEN TEXT */
+td:nth-child(3) {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+}
+.sources-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;  /* more space to chart */
+  gap: 20px;
+}
+.source-legend {
+  padding: 12px 20px;
+  max-height: 300px;   /* match chart height */
+  overflow-y: auto;    /* 🔥 scroll if more items */
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.source-item:last-child { border-bottom: none; }
+
+.source-color {
+  width: 10px; height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.source-name { font-size: 10px; font-weight: 500; flex: 1; }
+.source-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text2);
+}
+
+.source-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text4);
+  text-align: right;
+}
+
+.pie-wrap {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;   /* 🔥 bigger chart */
+}
+
+/* Revenue KPIs side */
+.kpi-list { padding: 0; }
+
+.kpi-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.kpi-row:last-child { border-bottom: none; }
+
+.kpi-label { font-size: 13px; font-weight: 500; color: var(--text2); }
+.kpi-label-sub { font-size: 10px; color: var(--text4); margin-top: 1px; font-family: 'JetBrains Mono', monospace; }
+
+.kpi-value {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.kpi-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.kpi-badge.green { background: var(--green-bg); color: var(--green); }
+.kpi-badge.amber { background: var(--amber-bg); color: var(--amber); }
+.kpi-badge.red { background: var(--red-bg); color: var(--red); }
