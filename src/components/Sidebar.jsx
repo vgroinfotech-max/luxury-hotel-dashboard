@@ -52,6 +52,7 @@ useEffect(() => {
   dashboard: "Dashboard",
   frontDesk: "Front Desk",
   reservation: "Reservation",
+  arrivals: "Arrivals",
   housekeeping: "Housekeeping",
   rooms: "Rooms",
   manageRooms: "Manage Rooms",
@@ -95,6 +96,7 @@ superAdmin: "Super Admin",
   housekeeping: "हाउसकीपिंग",
 
   // Rooms
+  arrivals: "आगमन",
   rooms: "कमरे",
   manageRooms: "कमरों का प्रबंधन",
   viewRooms: "कमरे देखें",
@@ -133,7 +135,7 @@ smsSettings: "एसएमएस सेटिंग्स",
   frontDesk: "الاستقبال",
   reservation: "الحجوزات",
   housekeeping: "التدبير المنزلي",
-
+arrivals: "الوصول",
   // Rooms
   rooms: "الغرف",
   manageRooms: "إدارة الغرف",
@@ -232,7 +234,15 @@ superAdmin: "المشرف العام",
             <span>{t.reservation}</span>
           </NavLink>
         </li>
-
+{/* Arrivals */}
+<li>
+  <NavLink to="/arrivals" className="menu-item">
+    <Tooltip text="Today's Guest Arrivals">
+      <FaUserTie />
+    </Tooltip>
+    <span>{t.arrivals || "Arrivals"}</span>
+  </NavLink>
+</li>
         {/* Housekeeping */}
         <li>
           <NavLink to="/housekeeping" className="menu-item">

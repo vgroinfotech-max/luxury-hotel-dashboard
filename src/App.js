@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import DashboardLiveStatus from "./pages/LiveStatus";
 import DashboardOverview from "./pages/Overview";
 import Reservation from "./pages/Reservation";
+import ExpressArrival from "./pages/Arrival"
 
 import ManageRooms from "./pages/ManageRooms";
 import RoomTypes from "./pages/RoomTypes";
@@ -32,10 +33,10 @@ import "./index.css";
 export default function App() {
   return (
     <LanguageProvider>
-      <div className="layout" style={{ display: "flex" }}>
+      <div className="layout" >
         <Sidebar />
 
-        <div className="main" style={{ flexGrow: 1 }}>
+        <div className="main">
           <TopHeader />
 
           <Routes>
@@ -45,7 +46,7 @@ export default function App() {
             <Route path="/dashboard/overview" element={<DashboardOverview />} />
 
             <Route path="/reservation" element={<Reservation />} />
-
+<Route path="/arrivals" element={<ExpressArrival />} />
             <Route path="/rooms/manage" element={<ManageRooms />} />
             <Route path="/rooms/add" element={<AddRoom />} />
             <Route path="/rooms/types" element={<RoomTypes />} />

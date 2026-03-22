@@ -1,11 +1,13 @@
 from flask import Flask, jsonify,request
 from flask_cors import CORS
 from database import get_db_connection
-
+import os
+import uuid
 app = Flask(__name__)
 CORS(app)
 
-
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # ================= DASHBOARD =================
 
 @app.route("/dashboard", methods=["GET"])
@@ -295,6 +297,189 @@ def booking_sources():
 
     return jsonify(data)
 
-    return jsonify(data)    
-if __name__ == "__main__":
+
+
+
+# ─────────────────────────────────────────────
+# ✅ 1. CREATE GUEST + LINK RESERVATION
+# ─────────────────────────────────────────────
+@app.route("/api/guest/create", methods=["POST"])
+def create_guest():
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        INSERT INTO guests (first_name, last_name, email, phone, id_type, id_number)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        data.get("firstName"),
+        data.get("lastName"),
+        data.get("email"),
+        data.get("phone"),
+        data.get("docType"),
+        data.get("docNumber")
+    ))
+
+    guest_id = cursor.lastrowid
+
+    # Link reservation
+    cursor.execute("""
+        UPDATE reservations
+        SET guest_id = %s
+        WHERE reservation_id = %s
+    """, (guest_id, data.get("reservation_id")))
+
+    db.commit()
+
+    return jsonify({
+        "status": "guest_created",
+        "guest_id": guest_id
+    })
+
+
+# ─────────────────────────────────────────────
+# ✅ 2. DOCUMENT UPLOAD + OCR MOCK
+# ─────────────────────────────────────────────
+@app.route("/api/doc/upload", methods=["POST"])
+def upload_doc():
+    try:
+        file = request.files.get("file")
+        docType = request.form.get("docType", "Document")
+
+        if not file:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        filename = str(uuid.uuid4()) + "_" + file.filename
+        path = os.path.join(UPLOAD_FOLDER, filename)
+
+        file.save(path)
+
+        db = get_db_connection()
+        cursor = db.cursor()
+
+        cursor.execute("""
+            INSERT INTO evidence (
+                id, tenant_id, compliance_item_id, title,
+                file_url, uploaded_by
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            str(uuid.uuid4()),
+            "tenant1",
+            "doc1",
+            docType,
+            path,
+            "guest"
+        ))
+
+        db.commit()
+
+        return jsonify({
+            "name": "Rahul Sharma",
+            "dob": "10 Jul 1990",
+            "nat": "Indian",
+            "docNo": "XXXX1234",
+            "exp": "2030",
+            "vType": "Tourist",
+            "vStatus": "ok"
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# ─────────────────────────────────────────────
+# ✅ 3. VISA CHECK
+# ─────────────────────────────────────────────
+@app.route("/api/doc/visa-check", methods=["POST"])
+def visa_check():
+    data = request.json
+
+    status = "ok"
+    if data.get("docType") == "Iqama":
+        status = "expired"
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        INSERT INTO compliance_reports (code, title, description, format, scope)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (
+        str(uuid.uuid4())[:8],
+        "Visa Check",
+        status,
+        "PDF",
+        "guest"
+    ))
+
+    db.commit()
+
+    return jsonify({"status": status})
+
+
+# ─────────────────────────────────────────────
+# ✅ 4. PAYMENT
+# ─────────────────────────────────────────────
+@app.route("/api/pay/pay", methods=["POST"])
+def make_payment():
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        INSERT INTO payments (payment_method, payment_status)
+        VALUES (%s, %s)
+    """, (
+        data.get("payment_method","UPI"),
+        "Completed"
+    ))
+
+    db.commit()
+
+    return jsonify({"status": "payment_success"})
+
+
+# ─────────────────────────────────────────────
+# ✅ 5. FINAL CHECK-IN
+# ─────────────────────────────────────────────
+@app.route("/api/booking/complete", methods=["POST"])
+def complete_booking():
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    # Get reservation data
+    cursor.execute("""
+        SELECT guestName, room_id, checkIn, checkOut
+        FROM reservations
+        WHERE reservation_id = %s
+    """, (data.get("reservation_id"),))
+
+    res = cursor.fetchone()
+
+    if not res:
+        return jsonify({"error": "Reservation not found"}), 404
+
+    cursor.execute("""
+        INSERT INTO booking (
+            guest_name, room_id, checkin_date, checkout_date,
+            booking_type, status
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        res[0],
+        res[1],
+        res[2],
+        res[3],
+        "pre_checkin",
+        "checked_in"
+    ))
+
+    db.commit()
+
+    return jsonify({"status": "checkin_complete"})
+if __name__ == "__main__": 
     app.run(debug=True)

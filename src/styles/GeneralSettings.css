@@ -26,7 +26,12 @@
   font-weight: 600;
   color: #0f172a;
 }
-
+.container,
+.card,
+.section {
+  max-width: 100%;
+  width: 100%;
+}
 /* Grids */
 .form-grid,
 .settings-grid {
