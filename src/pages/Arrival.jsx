@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
+import { useParams } from "react-router-dom";
 const API = "http://localhost:5000/api";
 /* ═══════════════════════════════════════════════════════════════
    GRAND PALACE — GUEST PRE-CHECK-IN
    Mobile-first · Warm ivory + deep ink + brushed gold
    Feels like a luxury boarding pass, not a form
 ═══════════════════════════════════════════════════════════════ */
-
 
 const C = {
   ink:        "#0E1C2A",
@@ -37,26 +37,6 @@ const serif   = "'Cormorant Garamond', 'Georgia', serif";
 const body    = "'Lora', 'Georgia', serif";
 const mono    = "'DM Mono', 'Courier New', monospace";
 
-/* ── MOCK DATA (would come from the link token) ── */
-const RESERVATION = {
-  id:        "R-1001",
-  hotel:     "Grand Palace",
-  city:      "New Delhi",
-  guestName: "Rahul Sharma",
-  room:      "204",
-  roomType:  "Deluxe Room",
-  checkin:   "12 Aug 2025",
-  checkout:  "15 Aug 2025",
-  nights:    3,
-  deposit:   2000,
-  arrTime:   "14:00",
-};
-
-const OCR_MOCK = {
-  Passport: { name:"Rahul Sharma", dob:"10 Jul 1990", nat:"Indian",  docNo:"J3421890",       exp:"22 Nov 2030", vType:"N/A (Domestic)", vStatus:"ok" },
-  Aadhaar:  { name:"Rahul Sharma", dob:"10 Jul 1990", nat:"Indian",  docNo:"9234-5678-0012", exp:null,          vType:"N/A (Domestic)", vStatus:"ok" },
-  Iqama:    { name:"Ahmad Al-Rashid",dob:"05 Nov 1982",nat:"Saudi",  docNo:"IQ-9923441",     exp:"10 Mar 2025", vType:"Residence Visa", vStatus:"expired" },
-};
 
 const STEPS = ["Details", "Document", "Visa", "Payment", "Confirm"];
 
@@ -134,7 +114,7 @@ function Field({ label, type="text", value, onChange, placeholder, req, note }) 
           {label}{req && <span style={{ color:C.goldBright }}> *</span>}
         </label>
         <input
-          type={type} value={value}
+          type={type} value={value || ""}
           onChange={e => onChange(e.target.value)}
           onFocus={()=>setFocus(true)}
           onBlur={()=>setFocus(false)}
@@ -308,7 +288,7 @@ function VisaCheck({ status, docType }) {
 ═══════════════════════════════════════════════════════════ */
 export default function GuestPreCheckin() {
   const [step,     setStep]    = useState(0);
-  const [form,     setForm]    = useState({ firstName:"Rahul", lastName:"Sharma", phone:"", email:"", arrTime:RESERVATION.arrTime, requests:"" });
+  const [form, setForm] = useState({ firstName:"", lastName:"", phone:"", email:"", arrTime:"", requests:"" });
   const [docType,  setDocType] = useState("Aadhaar");
   const [scanning, setScanning]= useState(false);
   const [ocrDone,  setOcrDone] = useState(false);
@@ -320,22 +300,72 @@ export default function GuestPreCheckin() {
   const fileRef = useRef();
 
   const upd = k => v => setForm(p=>({...p,[k]:v}));
-// SAVE GUEST
-async function saveGuest() {
+  const [RESERVATION, setRESERVATION] = useState(null);
+  const { id } = useParams();
+useEffect(() => {
+  if (!id) return;
+
+  fetch(`http://localhost:5000/api/reservation/${id}`)
+    .then(res => {
+      if (!res.ok) throw new Error("Reservation not found");
+      return res.json();
+    })
+    .then(data => {
+    const reservationData = {
+        id: data.id,
+        hotel: data.hotelName,
+  city: data.city,
+
+  guestName: data.guestName,
+
+  roomType: data.roomType,
+  room: data.roomNumber,
+
+  checkIn: data.checkIn,
+  checkOut: data.checkOut,
+
+  nights: data.nights,
+
+  deposit: data.deposit,
+  arrTime: data.arrTime
+};
+      setRESERVATION(reservationData);
+
+      setForm(prev => ({
+        ...prev,
+        arrTime: reservationData.arrTime
+      }));
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Reservation not found");
+    });
+
+}, [id]);
+
+ async function saveGuest() {
+
+  if (!RESERVATION) {
+    alert("Reservation not loaded yet");
+    return;
+  }
+
   await fetch(`${API}/guest/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      phone: form.phone,
-      docType: docType,
-      docNumber: ocrData?.docNo || "",
-      reservation_id: Number(RESERVATION.id)   // 🔥 IMPORTANT
+  firstName: form.firstName,
+  lastName: form.lastName,
+  email: form.email,
+  phone: form.phone,
+  docType: docType,
+  docNumber: ocrData?.docNo || "",
+  reservation_id: RESERVATION.id   // 🔥 MUST ADD
+})
     })
-  });
+  ;
 }
+
 // PAYMENT
 async function makePayment() {
   await fetch(`${API}/pay/pay`, {
@@ -355,12 +385,14 @@ async function completeBooking() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      reservation_id: 1001
+      reservation_id: RESERVATION.id
     })
   });
 }
   /* ── validators ── */
-  const step0ok = form.phone.length > 5 && form.email.includes("@");
+  const step0ok =
+  /^[6-9]\d{9}$/.test(form.phone) &&
+  form.email.includes("@");
   const step1ok = ocrDone;
   const step2ok = true;
   const step3ok = true; // deposit optional
@@ -400,7 +432,8 @@ async function runVisaCheck() {
     const data = await res.json();
 
     setVisaDone(true);
-    setStep(3);   // 🔥 THIS LINE FIXES YOUR ISSUE
+    await sleep(800); // smooth UX
+setStep(3);// 🔥 THIS LINE FIXES YOUR ISSUE
 
   } catch {
     alert("Visa check failed");
@@ -481,7 +514,7 @@ async function runVisaCheck() {
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:26 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:C.goldBright, boxShadow:`0 0 8px ${C.goldBright}` }}/>
           <span style={{ fontFamily:mono, fontSize:9.5, color:C.onInkSoft, letterSpacing:".18em" }}>
-            GRAND PALACE · NEW DELHI
+           {RESERVATION?.hotel} · {RESERVATION?.city}
           </span>
         </div>
 
@@ -491,20 +524,55 @@ async function runVisaCheck() {
             PRE CHECK-IN
           </div>
           <h1 style={{ fontFamily:serif, fontSize:34, color:C.onInk, lineHeight:1.1, fontWeight:600 }}>
-            Hello, {RESERVATION.guestName.split(" ")[0]}.<br/>
+          Hello, {RESERVATION?.guestName?.split(" ")[0] || "Guest"}..
             <span style={{ fontStyle:"italic", color:C.goldBright, fontSize:30 }}>Let's get you<br/>ready to arrive.</span>
           </h1>
         </div>
 
         {/* Reservation ribbon */}
-        <div style={{ display:"flex", gap:14, background:"rgba(255,255,255,.05)", border:`1px solid ${C.onInkFaint}`, borderRadius:12, padding:"12px 14px", marginBottom:28 }}>
-          {[["Room", RESERVATION.roomType+" "+RESERVATION.room],["Check-in",RESERVATION.checkin.split(" ").slice(0,2).join(" ")],["Nights",RESERVATION.nights+"n"]].map(([k,v])=>(
-            <div key={k} style={{ flex:1, borderRight:k!=="Nights"?`1px solid ${C.onInkFaint}`:"none", paddingRight:k!=="Nights"?14:0 }}>
-              <div style={{ fontSize:8.5, fontFamily:mono, color:C.onInkFaint, letterSpacing:".1em", marginBottom:4 }}>{k.toUpperCase()}</div>
-              <div style={{ fontSize:12, fontFamily:body, color:C.onInk, fontWeight:500 }}>{v}</div>
-            </div>
-          ))}
-        </div>
+<div style={{
+  display: "flex",
+  gap: 14,
+  background: "rgba(255,255,255,.05)",
+  border: `1px solid ${C.onInkFaint}`,
+  borderRadius: 12,
+  padding: "12px 14px",
+  marginBottom: 28
+}}>
+  {[
+    ["Room", `${RESERVATION?.roomType || ""}`],
+   ["Check-in", RESERVATION?.checkIn || "—"],
+    ["Nights", RESERVATION?.nights ? RESERVATION.nights + "n" : "—"]
+  ].map(([k, v]) => (
+    <div
+      key={k}
+      style={{
+        flex: 1,
+        borderRight: k !== "Nights" ? `1px solid ${C.onInkFaint}` : "none",
+        paddingRight: k !== "Nights" ? 14 : 0
+      }}
+    >
+      <div style={{
+        fontSize: 8.5,
+        fontFamily: mono,
+        color: C.onInkFaint,
+        letterSpacing: ".1em",
+        marginBottom: 4
+      }}>
+        {k.toUpperCase()}
+      </div>
+
+      <div style={{
+        fontSize: 12,
+        fontFamily: body,
+        color: C.onInk,
+        fontWeight: 500
+      }}>
+        {v}
+      </div>
+    </div>
+  ))}
+</div>
 
         {/* Step track */}
         <ProgressTrack current={step}/>
@@ -577,7 +645,7 @@ async function runVisaCheck() {
                     </div>
                   </div>
                   {/* Or simulate button */}
-                  <button onClick={runScan} style={{ display:"block", width:"100%", marginTop:14, padding:"13px 0", background:"transparent", border:`1.5px solid ${C.parchmentDp}`, borderRadius:12, fontFamily:mono, fontSize:11, color:C.gold, cursor:"pointer", letterSpacing:".08em" }}>
+                  <button onClick={() => runScan(new File([], "mock"))} style={{ display:"block", width:"100%", marginTop:14, padding:"13px 0", background:"transparent", border:`1.5px solid ${C.parchmentDp}`, borderRadius:12, fontFamily:mono, fontSize:11, color:C.gold, cursor:"pointer", letterSpacing:".08em" }}>
                     ↻ SIMULATE OCR SCAN
                   </button>
                 </div>
@@ -648,28 +716,57 @@ async function runVisaCheck() {
 
               {/* Payment methods */}
               <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:18 }}>
+               
                 {[
-                  { id:"card",    icon:"💳", label:"Credit / Debit Card",  sub:"Visa · Mastercard · Rupay" },
-                  { id:"upi",     icon:"📱", label:"UPI",                   sub:"PhonePe · GPay · Paytm · BHIM" },
-                  { id:"net",     icon:"🏦", label:"Net Banking",           sub:"All major Indian banks" },
-                  { id:"arrival", icon:"🏨", label:"Pay at Hotel",          sub:"Settle the deposit at front desk" },
-                ].map(m => (
-                  <button key={m.id} onClick={()=>setPayMeth(m.id)}
-                    style={{ padding:"14px 16px", borderRadius:14, border:`1.5px solid ${payMethod===m.id?C.goldBright:C.parchmentDp}`, background:payMethod===m.id?C.goldPale:C.white, cursor:"pointer", display:"flex", alignItems:"center", gap:14, transition:"all .2s", textAlign:"left", boxShadow:payMethod===m.id?`0 0 0 3px ${C.goldGlow}`:"none" }}>
-                    <div style={{ width:42, height:42, borderRadius:12, background:payMethod===m.id?C.white:C.parchmentMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0, transition:"background .2s" }}>{m.icon}</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13, fontFamily:body, fontWeight:600, color:C.ink, marginBottom:2 }}>{m.label}</div>
-                      <div style={{ fontSize:10, fontFamily:mono, color:C.gold, letterSpacing:".04em" }}>{m.sub}</div>
-                    </div>
-                    <div style={{ width:20, height:20, borderRadius:"50%", border:`2px solid ${payMethod===m.id?C.goldBright:C.parchmentDp}`, background:payMethod===m.id?C.goldBright:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .2s" }}>
-                      {payMethod===m.id&&<div style={{ width:7, height:7, borderRadius:"50%", background:"#fff" }}/>}
-                    </div>
-                  </button>
-                ))}
+  { id:"card", icon:"💳", label:"Credit / Debit Card", sub:"Visa · Mastercard · Rupay" },
+  { id:"upi", icon:"📱", label:"UPI", sub:"PhonePe · GPay · Paytm · BHIM" },
+  { id:"net", icon:"🏦", label:"Net Banking", sub:"All major Indian banks" },
+  { id:"arrival", icon:"🏨", label:"Pay at Hotel", sub:"Settle the deposit at front desk" },
+].map(m => (
+  <button
+    key={m.id}
+    onClick={() => setPayMeth(m.id)}
+    style={{
+      padding:"14px 16px",
+      borderRadius:14,
+      border:`1.5px solid ${payMethod===m.id ? C.goldBright : C.parchmentDp}`,
+      background:payMethod===m.id ? C.goldPale : C.white,
+      cursor:"pointer",
+      display:"flex",
+      alignItems:"center",
+      gap:14,
+      transition:"all .2s",
+      textAlign:"left",
+      boxShadow:payMethod===m.id ? `0 0 0 3px ${C.goldGlow}` : "none"
+    }}
+  >
+    <div style={{
+      width:42,
+      height:42,
+      borderRadius:12,
+      background:payMethod===m.id ? C.white : C.parchmentMd,
+      display:"flex",
+      alignItems:"center",
+      justifyContent:"center",
+      fontSize:19
+    }}>
+      {m.icon}
+    </div>
+
+    <div style={{ flex:1 }}>
+      <div style={{ fontSize:13, fontFamily:body, fontWeight:600, color:C.ink }}>
+        {m.label}
+      </div>
+      <div style={{ fontSize:10, fontFamily:mono, color:C.gold }}>
+        {m.sub}
+      </div>
+    </div>
+  </button>
+))}
               </div>
 
               {payMethod && payMethod!=="arrival" && (
-                <button onClick={()=>setPayDone(true)}
+                <button onClick={makePayment}
                   style={{ width:"100%", padding:"15px 0", borderRadius:14, fontFamily:mono, fontSize:12, cursor:"pointer", letterSpacing:".1em", fontWeight:600, transition:"all .35s",
                     background:payDone?C.greenPale:"linear-gradient(135deg,"+C.ink+","+C.inkLight+")",
                     color:payDone?C.green:"#fff",
@@ -701,8 +798,8 @@ async function runVisaCheck() {
                 ["Guest",     `${form.firstName} ${form.lastName}`],
                 ["Mobile",    form.phone || "—"],
                 ["Email",     form.email || "—"],
-                ["Arrival",   `${RESERVATION.checkin} · ${form.arrTime}`],
-                ["Room",      `${RESERVATION.roomType} ${RESERVATION.room}`],
+                ["Arrival",   `${RESERVATION.checkIn} · ${form.arrTime}`],
+                ["Room",      `${RESERVATION?.roomType} ${RESERVATION.room}`],
                 ["Checkout",  RESERVATION.checkout],
                 ["Document",  docType],
                 ["Visa",      ocrData?.vStatus==="ok" ? "✓ Verified" : "⚠ See hotel"],

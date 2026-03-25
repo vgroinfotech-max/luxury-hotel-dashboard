@@ -479,7 +479,90 @@ def complete_booking():
     ))
 
     db.commit()
-
     return jsonify({"status": "checkin_complete"})
-if __name__ == "__main__": 
+# ─────────────────────────────────────────────
+# ✅ PRE-CHECKIN DATA (DYNAMIC USER DATA)
+# ─────────────────────────────────────────────
+@app.route("/api/precheckin/<int:res_id>", methods=["GET"])
+def get_precheckin(res_id):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT 
+            r.reservation_id,
+            g.first_name,
+            g.last_name,
+            r.roomType,
+            r.room_id,
+            r.checkIn,
+            r.checkOut,
+            DATEDIFF(r.checkOut, r.checkIn) AS nights
+        FROM reservations r
+        LEFT JOIN guests g ON r.guest_id = g.guest_id
+        WHERE r.reservation_id = %s
+    """, (res_id,))
+
+    data = cursor.fetchone()
+
+    if not data:
+        return jsonify({"error": "Reservation not found"}), 404
+
+    cursor.close()
+    db.close()
+
+    return jsonify({
+        "name": f"{data.get('first_name','Guest')} {data.get('last_name','')}",
+        "room": f"{data['roomType']} Room {data['room_id']}",
+        "checkIn": str(data["checkIn"]),
+        "nights": data["nights"]
+    })
+    return jsonify({"status": "checkin_complete"})
+
+
+@app.route("/api/reservation/<int:id>", methods=["GET"])
+def get_reservation(id):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    query = "SELECT * FROM reservations WHERE reservation_id = %s"
+    cursor.execute(query, (id,))
+    res = cursor.fetchone()
+
+    cursor.close()
+    db.close()  # ✅ ALSO ADD THIS
+
+    if not res:
+        return jsonify({"error": "Not found"}), 404
+
+    # ✅ Calculate nights
+    nights = 0
+    if res["checkIn"] and res["checkOut"]:
+        nights = (res["checkOut"] - res["checkIn"]).days
+
+    # ✅ CORRECT INDENTATION
+    return jsonify({
+        "id": res["reservation_id"],
+        "guestName": res["guestName"],
+
+        "hotelName": "Grand Palace",
+        "city": "New Delhi",
+
+        "roomType": res["roomType"],
+        "roomNumber": res["room_id"],
+
+        "checkIn": res["checkIn"].strftime("%d %b") if res["checkIn"] else "",
+        "checkOut": res["checkOut"].strftime("%d %b") if res["checkOut"] else "",
+
+        "nights": nights,
+
+        "rooms": res["rooms"],
+        "guests": res["guests"],
+
+        "deposit": 2000,
+        "arrTime": "14:00"
+    })
+
+
+if __name__ == "__main__":
     app.run(debug=True)

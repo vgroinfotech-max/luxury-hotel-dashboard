@@ -46,7 +46,8 @@ export default function App() {
             <Route path="/dashboard/overview" element={<DashboardOverview />} />
 
             <Route path="/reservation" element={<Reservation />} />
-<Route path="/arrivals" element={<ExpressArrival />} />
+            <Route path="/arrivals" element={<ExpressArrival />} />
+<Route path="/arrivals/:id" element={<ExpressArrival />} />
             <Route path="/rooms/manage" element={<ManageRooms />} />
             <Route path="/rooms/add" element={<AddRoom />} />
             <Route path="/rooms/types" element={<RoomTypes />} />
