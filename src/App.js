@@ -15,6 +15,9 @@ import ViewRooms from "./pages/ViewRooms";
 import ViewAllRooms from "./pages/ViewAllRooms";
 import AddRoom from "./pages/AddRoom";
 import EditRoom from "./pages/EditRoom";
+
+import Inventory from "./pages/inventory-calendar";
+
 import StaffManagement from "./pages/StaffManagement";
 import GeneralSettings from "./pages/GeneralSettings";
 import FrontendSettings from "./pages/FrontendSettings";
@@ -28,7 +31,7 @@ import { LanguageProvider } from "./context/LanguageContext";
 import BookRoom from "./pages/BookRoom";
 import SuperAdminDashboard from "./pages/SuperAdmin";
 import ComplianceRoutes from "./compliance/ComplianceRoutes";
-import "./index.css";
+import "./index.css" 
 
 export default function App() {
   return (
@@ -59,6 +62,7 @@ export default function App() {
             <Route path="/rooms/viewall" element={<ViewAllRooms />} />
 
             <Route path="/staff" element={<StaffManagement />} />
+            <Route path="/inventory" element={<Inventory/>} />
             <Route path="/control/rules" element={<Rules />} />
             <Route path="/settings/general" element={<GeneralSettings />} />
             <Route path="/settings/frontend" element={<FrontendSettings />} />

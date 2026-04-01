@@ -10,6 +10,35 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # ================= DASHBOARD =================
 
+from datetime import datetime, timedelta
+
+BASE_DATE = datetime(2026, 3, 8)
+
+def to_date(day):
+    return BASE_DATE + timedelta(days=day)
+
+def to_days(date):
+    return (date - BASE_DATE).days
+
+def convert_booking(row):
+    if not row["checkIn"] or not row["checkOut"]:
+        return None
+
+    start_day = to_days(row["checkIn"])
+    end_day = to_days(row["checkOut"])
+
+    return {
+        "id": row["reservation_id"],
+        "room": row["room_id"],
+        "startDay": start_day,
+        "endDay": end_day,
+        "nights": end_day - start_day,
+        "guest": f"{row.get('first_name','')} {row.get('last_name','')}".strip(),
+        "status": row.get("status", "confirmed"),
+        "rate": 0,
+        "source": "DB"
+    }
+
 @app.route("/dashboard", methods=["GET"])
 def dashboard():
 
@@ -562,6 +591,158 @@ def get_reservation(id):
         "deposit": 2000,
         "arrTime": "14:00"
     })
+
+@app.route("/api/rooms", methods=["GET"])
+def get_rooms():
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT 
+            no AS id,
+            floor,
+            occupancy,
+            view
+        FROM room
+    """)
+
+    rooms = cursor.fetchall()
+
+    # optional: map fields for frontend
+    for r in rooms:
+        r["type"] = "Room"   # default (since no type table used)
+        r["bed"] = f"{r.get('occupancy', 2)} Guest"
+
+    cursor.close()
+    return jsonify(rooms)
+
+@app.route("/api/bookings", methods=["GET"])
+def get_bookings():
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM booking")
+    data = cursor.fetchall()
+
+    from datetime import datetime
+    BASE_DATE = datetime(2026, 4, 1)  # 🔥 match your UI start date
+
+    bookings = []
+
+    for b in data:
+        checkin = datetime.combine(b["checkin_date"], datetime.min.time())
+        checkout = datetime.combine(b["checkout_date"], datetime.min.time())
+
+        startDay = (checkin - BASE_DATE).days
+        endDay = (checkout - BASE_DATE).days
+
+        bookings.append({
+            "id": b["booking_id"],
+            "room": b["room_id"],
+            "startDay": startDay,
+            "endDay": endDay,
+            "nights": endDay - startDay,
+            "status": b["status"] or "confirmed",
+            "guest": b["guest_name"] or "Guest",
+            "rate": 3000,
+            "source": b["booking_type"] or "Direct"
+        })
+
+    cursor.close()
+    return jsonify(bookings)
+
+@app.route("/api/bookings", methods=["POST"])
+def create_booking():
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    # Insert guest
+    cursor.execute(
+        "INSERT INTO guests (first_name) VALUES (%s)",
+        (data["guest"],)
+    )
+    guest_id = cursor.lastrowid
+
+    check_in = to_date(data["startDay"])
+    check_out = to_date(data["endDay"])
+
+    cursor.execute("""
+        INSERT INTO reservations (room_id, guest_id, checkIn, checkOut, status)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (
+        data["room"],
+        guest_id,
+        check_in,
+        check_out,
+        data["status"]
+    ))
+
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({"message": "Booking created"})
+
+
+@app.route("/api/bookings/<int:id>", methods=["PUT"])
+def update_booking(id):
+    data = request.json
+
+    check_in = to_date(data["startDay"])
+    check_out = to_date(data["endDay"])
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        UPDATE reservations
+        SET room_id=%s, checkIn=%s, checkOut=%s
+        WHERE reservation_id=%s
+    """, (
+        data["room"],
+        check_in,
+        check_out,
+        id
+    ))
+
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({"message": "Booking updated"})
+
+@app.route("/api/check-conflict", methods=["POST"])
+def check_conflict():
+    data = request.json
+
+    check_in = to_date(data["startDay"])
+    check_out = to_date(data["endDay"])
+
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT * FROM reservations
+        WHERE room_id = %s
+        AND NOT (%s <= checkIn OR %s >= checkOut)
+    """, (
+        data["room"],
+        check_out,
+        check_in
+    ))
+
+    conflicts = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+
+    return jsonify({"conflict": len(conflicts) > 0})
+
+
+
+
 
 
 if __name__ == "__main__":
