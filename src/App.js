@@ -16,6 +16,7 @@ import ViewAllRooms from "./pages/ViewAllRooms";
 import AddRoom from "./pages/AddRoom";
 import EditRoom from "./pages/EditRoom";
 
+import SmartHousekeeping from "./pms-housekeeping-engine";
 import Inventory from "./pages/inventory-calendar";
 
 import StaffManagement from "./pages/StaffManagement";
@@ -47,7 +48,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/live-status" element={<DashboardLiveStatus />} />
             <Route path="/dashboard/overview" element={<DashboardOverview />} />
-
+<Route path="/housekeeping" element={<SmartHousekeeping/>} />
             <Route path="/reservation" element={<Reservation />} />
             <Route path="/arrivals" element={<ExpressArrival />} />
 <Route path="/arrivals/:id" element={<ExpressArrival />} />

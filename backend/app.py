@@ -614,6 +614,8 @@ def get_rooms():
         r["bed"] = f"{r.get('occupancy', 2)} Guest"
 
     cursor.close()
+    
+    db.close()
     return jsonify(rooms)
 
 @app.route("/api/bookings", methods=["GET"])
@@ -741,8 +743,199 @@ def check_conflict():
     return jsonify({"conflict": len(conflicts) > 0})
 
 
+# ─────────────────────────────────────────
+# PRIORITY ENGINE (same logic as frontend)
+# ─────────────────────────────────────────
+def calculate_priority(arrival_min, vip, progress):
+    score = 0
+
+    if arrival_min:
+        if arrival_min < 60:
+            score += 55
+        elif arrival_min < 180:
+            score += 35
+        else:
+            score += 15
+
+    if vip:
+        score += 25
+
+    if progress:
+        score = int(score * (1 - progress / 100))
+
+    return min(100, max(0, score))
 
 
+# ─────────────────────────────────────────
+# GET ROOMS (MAIN API)
+# ─────────────────────────────────────────
+@app.route("/rooms", methods=["GET"])
+def get_housekeeping_rooms():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+    SELECT 
+       r.no AS id,
+        r.no AS room_number,
+    r.floor,
+    rt.name AS type,
+
+    IFNULL(rs.status, 'Dirty') AS status,
+
+    CONCAT(
+        IFNULL(g.first_name,''), ' ',
+        IFNULL(g.last_name,'')
+    ) AS guest,
+
+    res.checkIn,
+    res.checkOut,
+
+    h.attendant AS assignee,
+    IFNULL(h.progress, 0) AS progress,
+    IFNULL(h.status, 'Dirty') AS cleaning_status
+
+FROM room r
+
+LEFT JOIN room_types rt 
+    ON r.room_type_id = rt.room_type_id
+
+LEFT JOIN room_status rs 
+    ON r.no = rs.room_id
+
+LEFT JOIN reservations res 
+    ON r.no = res.room_id
+
+LEFT JOIN guests g 
+    ON res.guest_id = g.guest_id
+
+LEFT JOIN housekeeping h 
+    ON r.no = h.room_number   -- ✅ THIS LINE WAS MISSING
+"""
+    
+    cursor.execute(query)
+    rooms = cursor.fetchall()
+
+    # Add priority score
+    for r in rooms:
+        arrival_min = 120  # 👉 you can later calculate from check_in time
+        vip = False        # 👉 can come from guest table if exists
+        progress = r.get("progress") or 0
+
+        r["priority_score"] = calculate_priority(arrival_min, vip, progress)
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(rooms)
+
+
+# ─────────────────────────────────────────
+# GET STAFF
+# ─────────────────────────────────────────
+@app.route("/staff", methods=["GET"])
+def get_staff():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT staff_id, first_name,last_name, department_id, status
+        FROM staff
+    """)
+
+    staff = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(staff)
+
+
+# ─────────────────────────────────────────
+# ASSIGN STAFF TO ROOM
+# ─────────────────────────────────────────
+@app.route("/assign", methods=["POST"])
+def assign_staff():
+    data = request.json
+    room_id = data.get("room_id")
+    staff_id = data.get("staff_id")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Check if already exists
+    cursor.execute("SELECT * FROM housekeeping WHERE room_number=%s", (room_id,))
+    existing = cursor.fetchone()
+
+    if existing:
+        cursor.execute("""
+            UPDATE housekeeping
+            SET attendant=%s, status='Cleaning'
+            WHERE room_number=%s
+        """, (staff_id, room_id))
+    else:
+        cursor.execute("""
+            INSERT INTO housekeeping (room_number, attendant, status, progress)
+            VALUES (%s, %s, 'Cleaning', 0)
+        """, (room_id, staff_id))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "Staff assigned successfully"})
+
+
+# ─────────────────────────────────────────
+# UPDATE CLEANING PROGRESS
+# ─────────────────────────────────────────
+@app.route("/progress", methods=["PUT"])
+def update_progress():
+    data = request.json
+    room_id = data.get("room_id")
+    progress = data.get("progress")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE housekeeping
+        SET progress = %s,
+            status = CASE
+                WHEN %s >= 100 THEN 'Ready'
+                WHEN %s > 0 THEN 'Cleaning'
+                ELSE 'Dirty'
+            END
+        WHERE room_id = %s
+    """, (progress, progress, progress, room_id))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "Progress updated"})
+
+
+# ─────────────────────────────────────────
+# UNASSIGN STAFF
+# ─────────────────────────────────────────
+@app.route("/unassign/<int:room_id>", methods=["DELETE"])
+def unassign(room_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM housekeeping WHERE room_id=%s", (room_id,))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "Unassigned successfully"})
+
+
+# ─────────────────────────────────────────
+# HEALTH CHECK
+# ─────────────────────────────────────────
 
 
 if __name__ == "__main__":
