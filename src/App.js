@@ -18,8 +18,9 @@ import EditRoom from "./pages/EditRoom";
 
 import SmartHousekeeping from "./pms-housekeeping-engine";
 import Inventory from "./pages/inventory-calendar";
-
-import StaffManagement from "./pages/StaffManagement";
+import UniversalSearch from "./pages/unified-search";
+import Staff from "./pages/staff-operations-v2";
+import OpsTimeline from "./pages/ops-timeline-v2 (1)";
 import GeneralSettings from "./pages/GeneralSettings";
 import FrontendSettings from "./pages/FrontendSettings";
 import Languages from "./components/Languages";
@@ -62,8 +63,10 @@ export default function App() {
 <Route path="/rooms/manage/book/:roomNo" element={<BookRoom />} />
             <Route path="/rooms/viewall" element={<ViewAllRooms />} />
 
-            <Route path="/staff" element={<StaffManagement />} />
+            <Route path="/staff" element={<Staff />} />
+            <Route path="/opsTimeline" element={<OpsTimeline />} />
             <Route path="/inventory" element={<Inventory/>} />
+            <Route path="/universalsearch" element={<UniversalSearch/>} />
             <Route path="/control/rules" element={<Rules />} />
             <Route path="/settings/general" element={<GeneralSettings />} />
             <Route path="/settings/frontend" element={<FrontendSettings />} />

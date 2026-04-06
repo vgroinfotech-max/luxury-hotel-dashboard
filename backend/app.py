@@ -727,7 +727,7 @@ def check_conflict():
 
     cursor.execute("""
         SELECT * FROM reservations
-        WHERE room_id = %s
+        WHERE room_number = %s
         AND NOT (%s <= checkIn OR %s >= checkOut)
     """, (
         data["room"],
@@ -920,11 +920,11 @@ def update_progress():
 # UNASSIGN STAFF
 # ─────────────────────────────────────────
 @app.route("/unassign/<int:room_id>", methods=["DELETE"])
-def unassign(room_id):
+def unassign(room_number):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("DELETE FROM housekeeping WHERE room_id=%s", (room_id,))
+    cursor.execute("DELETE FROM housekeeping WHERE room_number=%s", (room_number,))
 
     conn.commit()
     cursor.close()
@@ -933,10 +933,357 @@ def unassign(room_id):
     return jsonify({"message": "Unassigned successfully"})
 
 
-# ─────────────────────────────────────────
-# HEALTH CHECK
-# ─────────────────────────────────────────
+
+@app.route('/search', methods=['GET'])
+def search():
+    query = request.args.get('query', '')
+
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    # =========================
+    # 👤 GUESTS
+    # =========================
+    cursor.execute("""
+        SELECT 
+            g.guest_id,
+            g.first_name,
+            g.last_name,
+            g.email,
+            g.phone,
+            r.company,
+            r.status,
+            r.vip,
+            rm.no AS room_number
+        FROM guests g
+        LEFT JOIN reservations r ON g.guest_id = r.guest_id
+        LEFT JOIN room rm ON r.room_id = rm.no
+        WHERE g.first_name LIKE %s 
+           OR g.last_name LIKE %s
+           OR g.email LIKE %s
+           OR g.phone LIKE %s
+        LIMIT 6
+    """, (f"%{query}%", f"%{query}%", f"%{query}%", f"%{query}%"))
+
+    guests_raw = cursor.fetchall()
+
+    guests = []
+    for g in guests_raw:
+        guests.append({
+            "id": g["guest_id"],
+            "name": f"{g['first_name'] or ''} {g['last_name'] or ''}".strip(),
+            "email": g["email"],
+            "phone": g["phone"],
+            "company": g["company"] or "Direct",
+            "tier": "Platinum" if g["vip"] else "Gold",
+            "score": 90 if g["vip"] else 70,
+            "status": g["status"] or "Reserved",
+            "room": str(g["room_number"]) if g["room_number"] else "—",
+            "nationality": "N/A"
+        })
+
+    # =========================
+    # 📋 RESERVATIONS
+    # =========================
+    cursor.execute("""
+        SELECT 
+            reservation_id,
+            guestName,
+            roomType,
+            checkIn,
+            checkOut,
+            status
+        FROM reservations
+        WHERE guestName LIKE %s
+           OR status LIKE %s
+        LIMIT 4
+    """, (f"%{query}%", f"%{query}%"))
+
+    reservations_raw = cursor.fetchall()
+
+    reservations = []
+    for r in reservations_raw:
+        reservations.append({
+            "id": f"RES-{r['reservation_id']}",
+            "guest": r["guestName"],
+            "room": r["roomType"],
+            "checkIn": str(r["checkIn"]),
+            "checkOut": str(r["checkOut"]),
+            "status": r["status"] or "Reserved",
+            "amount": "₹0"
+        })
+
+    # =========================
+    # 🏨 ROOMS
+    # =========================
+    cursor.execute("""
+        SELECT 
+            no,
+            room_type_id,
+            floor,
+            status,
+            price
+        FROM room
+        WHERE CAST(no AS CHAR) LIKE %s
+           OR status LIKE %s
+        LIMIT 4
+    """, (f"%{query}%", f"%{query}%"))
+
+    rooms_raw = cursor.fetchall()
+
+    rooms = []
+    for r in rooms_raw:
+        rooms.append({
+            "number": str(r["no"]),
+            "type": f"Type-{r['room_type_id']}",
+            "floor": r["floor"],
+            "status": r["status"],
+            "rate": f"₹{r['price']}" if r["price"] else "₹0"
+        })
+
+    cursor.close()
+    db.close()
+
+    return jsonify({
+        "guests": guests,
+        "reservations": reservations,
+        "rooms": rooms
+    })
 
 
+from datetime import datetime, date, time
+
+# ─────────────────────────────────────────────
+# ✅ SAFE TIME EXTRACTOR
+# ─────────────────────────────────────────────
+def get_hour_min(dt):
+    if not dt:
+        return 0, 0
+
+    if isinstance(dt, datetime):
+        return dt.hour, dt.minute
+
+    if isinstance(dt, time):
+        return dt.hour, dt.minute
+
+    if isinstance(dt, date):
+        dt = datetime.combine(dt, time(12, 0))  # fallback 12 PM
+        return dt.hour, dt.minute
+
+    return 0, 0
+
+
+# ─────────────────────────────────────────────
+# 🧠 TIMELINE API
+# ─────────────────────────────────────────────
+@app.route("/api/timeline", methods=["GET"])
+def get_timeline():
+
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    events = []
+
+    # ───────────── 1. ARRIVALS & DEPARTURES ─────────────
+    cursor.execute("""
+        SELECT 
+            r.reservation_id,
+            r.checkIn,
+            r.checkOut,
+            r.room_id,
+            g.first_name,
+            g.last_name
+        FROM reservations r
+        LEFT JOIN guests g ON r.guest_id = g.guest_id
+    """)
+
+    for r in cursor.fetchall():
+
+        fname = r.get("first_name")
+        lname = r.get("last_name")
+
+        name = f"{fname or ''} {lname or ''}".strip() or "Guest"
+
+        # ARRIVAL
+        if r["checkIn"]:
+            h, m = get_hour_min(r["checkIn"])
+
+            events.append({
+                "id": f"arr_{r['reservation_id']}",
+                "t": "arr",
+                "title": f"Arrival · {name}",
+                "sub": "Check-in scheduled",
+                "room": r["room_id"],
+                "h": h,
+                "m": m,
+                "status": "pending",
+                "ai": False,
+                "conf": None,
+                "dur": 30
+            })
+
+        # DEPARTURE
+        if r["checkOut"]:
+            h, m = get_hour_min(r["checkOut"])
+
+            events.append({
+                "id": f"dep_{r['reservation_id']}",
+                "t": "dep",
+                "title": f"Checkout · {name}",
+                "sub": "Check-out scheduled",
+                "room": r["room_id"],
+                "h": h,
+                "m": m,
+                "status": "pending",
+                "ai": False,
+                "conf": None,
+                "dur": 30
+            })
+
+    # ───────────── 2. HOUSEKEEPING ─────────────
+    cursor.execute("""
+        SELECT id, room_number, status, updated_time, progress
+        FROM housekeeping
+    """)
+
+    for h in cursor.fetchall():
+        if h["updated_time"]:
+            hh, mm = get_hour_min(h["updated_time"])
+
+            events.append({
+                "id": f"hk_{h['id']}",
+                "t": "hk",
+                "title": f"Cleaning · Room {h['room_number']}",
+                "sub": f"Status: {h['status']}",
+                "room": h["room_number"],
+                "h": hh,
+                "m": mm,
+                "status": (h["status"] or "pending").lower(),
+                "prog": h["progress"] or 0,
+                "ai": False,
+                "conf": None,
+                "dur": 45
+            })
+
+    # ───────────── 3. MAINTENANCE ─────────────
+    cursor.execute("""
+        SELECT request_id, status, request_time
+        FROM service_requests
+    """)
+
+    for m in cursor.fetchall():
+        if m["request_time"]:
+            hh, mm = get_hour_min(m["request_time"])
+
+            events.append({
+                "id": f"mnt_{m['request_id']}",
+                "t": "mnt",
+                "title": f"Service Request #{m['request_id']}",
+                "sub": f"Status: {m['status']}",
+                "room": None,
+                "h": hh,
+                "m": mm,
+                "status": (m["status"] or "pending").lower(),
+                "ai": False,
+                "conf": None,
+                "dur": 60
+            })
+
+    # ───────────── 4. SHIFTS ─────────────
+    cursor.execute("""
+        SELECT id, opened_by, opened_at
+        FROM shifts
+    """)
+
+    for s in cursor.fetchall():
+        if s["opened_at"]:
+            hh, mm = get_hour_min(s["opened_at"])
+
+            events.append({
+                "id": f"shift_{s['id']}",
+                "t": "shift",
+                "title": "Shift Started",
+                "sub": f"Staff: {s['opened_by']}",
+                "room": None,
+                "h": hh,
+                "m": mm,
+                "status": "done",
+                "ai": False,
+                "conf": None,
+                "dur": 30
+            })
+
+    # ───────────── 5. AI ALERT ─────────────
+    cursor.execute("SELECT COUNT(*) as total FROM reservations")
+    total = cursor.fetchone()["total"]
+
+    if total > 100:
+        events.append({
+            "id": "ai_1",
+            "t": "ai",
+            "title": "AI Alert · Overbooking risk",
+            "sub": f"{total} reservations",
+            "room": None,
+            "h": 18,
+            "m": 0,
+            "status": "pending",
+            "ai": True,
+            "conf": 85,
+            "dur": 30
+        })
+
+    cursor.close()
+    db.close()
+
+    # ✅ SORT EVENTS
+    events.sort(key=lambda x: (x["h"], x["m"]))
+
+    return jsonify(events)
+
+
+# ─────────────────────────────────────────────
+# 🔧 ADD MAINTENANCE
+# ─────────────────────────────────────────────
+@app.route("/api/maintenance", methods=["POST"])
+def add_maintenance():
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        INSERT INTO service_requests (service_id, status)
+        VALUES (%s, 'pending')
+    """, (data.get("service_id"),))
+
+    db.commit()
+
+    cursor.close()
+    db.close()
+
+    return jsonify({"message": "Maintenance request added"})
+
+
+# ─────────────────────────────────────────────
+# 🧹 UPDATE HOUSEKEEPING
+# ─────────────────────────────────────────────
+@app.route("/api/housekeeping/<int:id>", methods=["PUT"])
+def update_housekeeping(id):
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute(
+        "UPDATE housekeeping SET status=%s WHERE id=%s",
+        (data["status"], id)
+    )
+
+    db.commit()
+
+    cursor.close()
+    db.close()
+
+    return jsonify({"message": "Housekeeping updated"})
 if __name__ == "__main__":
     app.run(debug=True)

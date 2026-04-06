@@ -12,13 +12,15 @@ import {
   FaChevronDown,
   FaBroom,
   FaDoorOpen,
-  FaShieldAlt
+  FaShieldAlt,
+  FaSearch
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import Tooltip from "../components/common/Tooltip";
 import { TOOLTIP_TEXT } from "../data/toolTip";
 import { useLanguage } from "../context/LanguageContext";
+import OpsTimeline from "../pages/ops-timeline-v2 (1)";
 
 
 export default function Sidebar() {
@@ -86,6 +88,8 @@ superAdmin: "Super Admin",
       complianceReports: "Compliance Reports",
       complianceDashboard:"Compliance Dashboard",
   logout: "Logout",
+  universalsearch:"Universal Search",
+  opsTimeline:"Operations Timeline"
 },
 
     hi: {
@@ -309,7 +313,14 @@ superAdmin: "المشرف العام",
             <span>{t.staff}</span>
           </NavLink>
         </li>
-
+<li>
+          <NavLink to="/opsTimeline" className="menu-item">
+            <Tooltip text={TOOLTIP_TEXT.Operations_Timeline}>
+              <FaUsers />
+            </Tooltip>
+            <span>{t.opsTimeline}</span>
+          </NavLink>
+        </li>
         {/* QR Code */}
         <li>
           <NavLink to="/qr" className="menu-item">
@@ -329,7 +340,14 @@ superAdmin: "المشرف العام",
             <span>{t.inventory}</span>
           </NavLink>
         </li>
-
+  <li>
+          <NavLink to="/universalsearch" className="menu-item">
+            <Tooltip text={TOOLTIP_TEXT.UNIVERSAL_SEARCH}>
+              <FaSearch />
+            </Tooltip>
+            <span>{t.universalsearch}</span>
+          </NavLink>
+        </li>
         {/* Reports */}
         <li>
           <NavLink to="/reports" className="menu-item">
