@@ -1285,5 +1285,145 @@ def update_housekeeping(id):
     db.close()
 
     return jsonify({"message": "Housekeeping updated"})
+
+# ✅ 1. GET FOLIO BY RESERVATION ID
+@app.route("/api/folios/<int:reservation_id>", methods=["GET"])
+def get_folio(reservation_id):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    # Get folio
+    cursor.execute("""
+        SELECT id
+        FROM folios
+        WHERE reservation_id = %s
+    """, (reservation_id,))
+    folio = cursor.fetchone()
+
+    if not folio:
+        return jsonify({"error": "Folio not found"}), 404
+
+    folio_id = folio["id"]
+
+    # Get charges
+    cursor.execute("""
+        SELECT id, amount, created_at
+        FROM ledger_entries
+        WHERE folio_id = %s
+        ORDER BY created_at
+    """, (folio_id,))
+    charges = cursor.fetchall()
+
+    # Get payments
+    cursor.execute("""
+        SELECT payment_id, payment_method, payment_status, amount
+        FROM payments
+        WHERE folio_id = %s
+    """, (folio_id,))
+    payments = cursor.fetchall()
+
+    # Totals
+    total_charges = sum(float(c["amount"]) for c in charges)
+    total_payments = sum(float(p["amount"]) for p in payments if p["payment_status"] == "Completed")
+    balance = total_charges - total_payments
+
+    cursor.close()
+    db.close()
+
+    return jsonify({
+        "folioId": folio_id,
+        "charges": charges,
+        "payments": payments,
+        "summary": {
+            "totalCharges": total_charges,
+            "totalPayments": total_payments,
+            "balance": balance
+        }
+    })
+
+
+# ✅ 2. ADD CHARGE
+@app.route("/api/folios/<string:folio_id>/charges", methods=["POST"])
+def add_charge(folio_id):
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        INSERT INTO ledger_entries 
+        (id, folio_id, tenant_id, ledger_account_id, amount, currency)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        str(uuid.uuid4()),
+        folio_id,
+        "tenant1",        # dummy (adjust later)
+        "ledger1",        # dummy (adjust later)
+        data["amount"],
+        "INR"
+    ))
+
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({"message": "Charge added successfully"})
+
+
+# ✅ 3. ADD PAYMENT
+@app.route("/api/folios/<string:folio_id>/payments", methods=["POST"])
+def add_payment(folio_id):
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        INSERT INTO payments 
+        (folio_id, payment_method, payment_status, amount)
+        VALUES (%s, %s, 'Completed', %s)
+    """, (
+        folio_id,
+        data.get("method", "UPI"),
+        data["amount"]
+    ))
+
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({"message": "Payment added successfully"})
+
+
+# ✅ 4. GENERATE INVOICE
+@app.route("/api/folios/<string:folio_id>/invoice", methods=["POST"])
+def generate_invoice(folio_id):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT amount 
+        FROM ledger_entries
+        WHERE folio_id = %s
+    """, (folio_id,))
+    charges = cursor.fetchall()
+
+    total = sum(float(c["amount"]) for c in charges)
+
+    cursor.execute("""
+        INSERT INTO invoices (folio_id, total_amount, status)
+        VALUES (%s, %s, 'generated')
+    """, (folio_id, total))
+
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({
+        "folioId": folio_id,
+        "total": total,
+        "status": "generated"
+    })
+# ✅ RUN SERVER
 if __name__ == "__main__":
     app.run(debug=True)

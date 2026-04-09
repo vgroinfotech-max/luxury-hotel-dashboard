@@ -13,7 +13,8 @@ import {
   FaBroom,
   FaDoorOpen,
   FaShieldAlt,
-  FaSearch
+  FaSearch,
+  FaMoneyBill
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
@@ -89,7 +90,8 @@ superAdmin: "Super Admin",
       complianceDashboard:"Compliance Dashboard",
   logout: "Logout",
   universalsearch:"Universal Search",
-  opsTimeline:"Operations Timeline"
+  opsTimeline:"Operations Timeline",
+  folio:"Folio"
 },
 
     hi: {
@@ -313,10 +315,18 @@ superAdmin: "المشرف العام",
             <span>{t.staff}</span>
           </NavLink>
         </li>
+        <li>
+          <NavLink to="/folio" className="menu-item">
+            <Tooltip text={TOOLTIP_TEXT.FOLIO}>
+              <FaUsers />
+            </Tooltip>
+            <span>{t.folio}</span>
+          </NavLink>
+        </li>
 <li>
           <NavLink to="/opsTimeline" className="menu-item">
             <Tooltip text={TOOLTIP_TEXT.Operations_Timeline}>
-              <FaUsers />
+              <FaMoneyBill />
             </Tooltip>
             <span>{t.opsTimeline}</span>
           </NavLink>

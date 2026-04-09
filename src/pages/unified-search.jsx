@@ -668,7 +668,7 @@ const [loading, setLoading] = useState(false);
         </div>
       )}
 
-      {/* Toast */}
+      
       {toast && (
         <div className="toast">
           <span style={{ color: C.gold }}>✦</span> {toast}

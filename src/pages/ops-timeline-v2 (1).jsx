@@ -741,7 +741,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Nav */}
           <div style={{padding:"9px 11px 12px",borderTop:`1px solid ${BD}`,flexShrink:0}}>
             <div style={{fontSize:7.5,fontFamily:FM,color:T4,letterSpacing:".14em",marginBottom:6}}>NAVIGATE</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
