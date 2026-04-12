@@ -276,33 +276,47 @@ body{font-family:'Lato',sans-serif;background:${C.bg};color:${C.ink};font-size:1
 .am-submit-charge:hover{background:${C.teal2}}
 .am-submit-pay{background:${C.green}}
 .am-submit-pay:hover{background:#256040}
-
+.f-delete {
+  margin-left: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: red;
+  font-size: 12px;
+}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.border};border-radius:4px}
 `;
 
 // ─── Component ────────────────────────────────────────────────
 export default function Folio() {
- const [guests, setGuests] = useState([]);
-const [activeGuest, setActiveGuest] = useState(null);
-const [txMap, setTxMap] = useState({});
-const [activeFolioId, setActiveFolioId] = useState(null);
-  const [modal, setModal] = useState(null); // 'charge'|'payment'|'invoice'|null
+
+  const [guests, setGuests] = useState([]);
+  const [activeGuest, setActiveGuest] = useState(null);
+  const [txMap, setTxMap] = useState({});
+  const [activeFolioId, setActiveFolioId] = useState(null);
+
+  // ✅ FIX: moved UP
+  const [folios, setFolios] = useState([]);
+
+  const [modal, setModal] = useState(null);
   const [searchQ, setSearchQ] = useState('');
 
-  // Add charge form state
   const [chCat, setChCat] = useState('restaurant');
   const [chDesc, setChDesc] = useState('');
   const [chAmt, setChAmt] = useState('');
 
-  // Add payment form state
+  const [selectedTx, setSelectedTx] = useState([]);
+
   const [payMethod, setPayMethod] = useState('UPI');
   const [payAmt, setPayAmt] = useState('');
   const [payRef, setPayRef] = useState('');
-const txs = txMap[activeGuest?.reservation_id] || [];
-  const folioTxs = txs;
-  const allFolios = [...new Set(txs.map(t => t.folio))].sort();
 
-  // Running balance
+  // ✅ now safe
+  const allFolios = folios.map(f => f.id);
+
+  const txs = activeFolioId ? (txMap[activeFolioId] || []) : [];
+  const folioTxs = txs;
+const [targetFolio, setTargetFolio] = useState("");
   const txsWithBal = folioTxs.reduce((acc, tx) => {
     const prev = acc.length > 0 ? acc[acc.length-1].running : 0;
     return [...acc, { ...tx, running: prev + tx.debit - tx.credit }];
@@ -312,13 +326,12 @@ const txs = txMap[activeGuest?.reservation_id] || [];
   const totalCredits = folioTxs.reduce((s,t) => s + t.credit, 0);
   const balance = totalDebits - totalCredits;
 
-  // Category totals
   const catTotals = folioTxs.reduce((m,t) => {
     if (t.cat === 'payment' || t.cat === 'refund') return m;
     return { ...m, [t.cat]: (m[t.cat] || 0) + t.debit };
   }, {});
-  const maxCat = Math.max(...Object.values(catTotals), 1);
 
+  const maxCat = Math.max(...Object.values(catTotals), 1);
   // Payments only
   const payments = folioTxs.filter(t => t.cat === 'payment' || t.cat === 'refund');
 
@@ -328,35 +341,58 @@ const txs = txMap[activeGuest?.reservation_id] || [];
   useEffect(() => {
   fetchGuests();
 }, []);
-
-const fetchGuests = async () => {
-  const res = await fetch("http://localhost:5000/guests");
+const fetchFolios = async (reservationId) => {
+  const res = await fetch(`http://localhost:5000/api/folios/by-reservation/${reservationId}`);
   const data = await res.json();
 
-  setGuests(data);
+  setFolios(data);
 
+  // auto select first folio
   if (data.length > 0) {
-    setActiveGuest(data[0]);
+    setActiveFolioId(data[0].id);
   }
 };
 useEffect(() => {
-  if (activeGuest?.reservation_id) {
-    fetchFolio(activeGuest.reservation_id);
+  if (activeGuest?.id) {
+    fetchFolios(activeGuest.id);
   }
 }, [activeGuest]);
-const fetchFolio = async (reservationId) => {
-  const res = await fetch(`http://localhost:5000/api/folios/${reservationId}`);
+const fetchGuests = async () => {
+  const res = await fetch("http://localhost:5000/api/guests");
   const data = await res.json();
 
-  setActiveFolioId(data.folioId);
+  const formatted = data.map(g => ({
+    ...g,
+    photo: "https://via.placeholder.com/40"
+  }));
+
+  setGuests(formatted);
+  
+
+};
+useEffect(() => {
+  console.log("Guests:", guests);
+}, [guests]);
+
+  useEffect(() => {
+  if (guests.length > 0) {
+    setActiveGuest(guests[0]);
+  }
+}, [guests]);
+
+
+const fetchFolio = async (folioId) => {
+  const res = await fetch(`http://localhost:5000/api/folios/${folioId}`);
+  const data = await res.json();
 
   const txs = [
     ...data.charges.map(c => ({
       id: c.id,
       date: new Date(c.created_at).toLocaleDateString(),
-      desc: c.description || "Charge",
+      desc: c.description,
       debit: Number(c.amount),
       credit: 0,
+      folio: folioId,   // ✅ IMPORTANT
       cat: "charge"
     })),
     ...data.payments.map(p => ({
@@ -365,15 +401,22 @@ const fetchFolio = async (reservationId) => {
       desc: `Payment (${p.payment_method})`,
       debit: 0,
       credit: Number(p.amount),
+      folio: folioId,   // ✅ IMPORTANT
       cat: "payment"
     }))
   ];
 
   setTxMap(prev => ({
     ...prev,
-    [reservationId]: txs
+    [folioId]: txs   // ✅ store per folio
   }));
 };
+useEffect(() => {
+  if (activeFolioId) {
+    fetchFolio(activeFolioId);   // ✅ correct
+  }
+}, [activeFolioId]);
+
 const fetchTransactions = async (guestId) => {
   const res = await fetch(`http://localhost:5000/api/folios/${guestId}`);
   const data = await res.json();
@@ -406,23 +449,138 @@ const fetchTransactions = async (guestId) => {
     [guestId]: txs
   }));
 };
-const addCharge = async () => {
-  if (!chAmt || !activeFolioId) return;
+const createFolio = async () => {
+  try {
+    if (!activeGuest?.id) {
+      alert("No guest selected");
+      return;
+    }
 
-  await fetch(`http://localhost:5000/api/folios/${activeFolioId}/charges`, {
+    const res = await fetch("http://localhost:5000/api/folios", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        reservation_id: activeGuest.id
+      })
+    });
+
+    const data = await res.json();
+    console.log("Created Folio:", data);
+
+    // ✅ only set this
+   setActiveFolioId(data.id || data.folioId);
+
+    // ❌ DO NOT call fetchFolio here
+
+  } catch (err) {
+    console.error("Create folio error:", err);
+    alert("Failed to create folio");
+  }
+};
+
+const splitFolio = async () => {
+  if (selectedTx.length === 0) {
+    alert("Select transactions first");
+    return;
+  }
+
+  if (folios.length < 2) {
+    alert("Create another folio first");
+    return;
+  }
+
+  const targetFolio = folios.find(f => f.id !== activeFolioId)?.id;
+
+  await fetch("http://localhost:5000/api/folios/split", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      description: chDesc,
-      amount: Number(chAmt)
+      fromFolioId: activeFolioId,
+      toFolioId: targetFolio,
+      entryIds: selectedTx
     })
   });
 
-  fetchFolio(activeGuest.reservation_id);
-  setModal(null);
+  setSelectedTx([]);
+
+  // refresh both folios
+  fetchFolio(activeFolioId);
+  fetchFolio(targetFolio);
+};
+const deleteFolio = async (folioId) => {
+  if (!window.confirm("Are you sure you want to delete this folio?")) return;
+
+  try {
+    await fetch(`http://localhost:5000/api/folios/${folioId}`, {
+      method: "DELETE"
+    });
+
+    // refresh folios list
+    await fetchFolios(activeGuest.id);
+
+    // reset active folio
+    setActiveFolioId(null);
+
+  } catch (err) {
+    console.error(err);
+    alert("Delete failed");
+  }
 };
 
-  
+const transferCharges = async () => {
+  if (!selectedTx.length || !targetFolio) {
+    alert("Select transactions & target folio");
+    return;
+  }
+
+  await fetch("http://localhost:5000/api/folios/transfer-charges", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      fromFolioId: activeFolioId,
+      toFolioId: targetFolio,
+      txIds: selectedTx
+    })
+  });
+
+  // refresh both folios
+  fetchFolio(activeFolioId);
+  fetchFolio(targetFolio);
+
+  setSelectedTx([]);
+  alert("Transferred successfully");
+};
+const addCharge = async () => {
+  try {
+    if (!chAmt || !activeFolioId) {
+      alert("Missing data");
+      return;
+    }
+
+    const res = await fetch(`http://localhost:5000/api/folios/${activeFolioId}/charges`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: chDesc,
+        amount: Number(chAmt)
+      })
+    });
+
+    const data = await res.json();
+    console.log("Response:", data);
+
+   fetchFolio(activeFolioId);
+    setModal(null);
+
+  } catch (err) {
+    console.error("ERROR:", err);
+    alert("Charge failed");
+  }
+};
 
   const addPayment = async () => {
   if (!payAmt || !activeFolioId) return;
@@ -436,17 +594,26 @@ const addCharge = async () => {
     })
   });
 
-  fetchFolio(activeGuest.reservation_id);
+  fetchFolio(activeFolioId);
   setModal(null);
 
   
 };
 
   const deleteTx = (id) => {
-    setTxMap(m => ({ ...m, [activeGuest?.id]: m[activeGuest.id].filter(t => t.id !== id) }));
+    setTxMap(m => ({
+  ...m,
+  [activeFolioId]: m[activeFolioId].filter(t => t.id !== id)
+}));
   };
 
   const payMethodIcon = (m) => ({ 'Cash':'💵','Card':'💳','UPI':'📱','Corporate':'🏢','NEFT':'🏦' })[m] || '💳';
+const filteredGuests = guests.filter((g) =>
+  g.name?.toLowerCase().includes(searchQ.toLowerCase()) ||
+  String(g.room)?.includes(searchQ) ||
+  g.type?.toLowerCase().includes(searchQ.toLowerCase())
+);
+console.log("Folio ID:", activeFolioId);
 
   return (
     <>
@@ -487,11 +654,11 @@ const addCharge = async () => {
             </div>
 
             <div className="gc-section">Checked In</div>
-            {guests.filter(g => g.status==='checkedin' && (g.name.toLowerCase().includes(searchQ.toLowerCase()) || g.room.includes(searchQ))).map(g => {
+            {guests.filter(g =>['checkedin', 'confirmed'].includes(g.status?.toLowerCase()) && (g.name.toLowerCase().includes(searchQ.toLowerCase()) || String(g.room || '').includes(searchQ))).map(g => {
               const gTxs = txMap[g.id] || [];
               const bal = gTxs.reduce((s,t) => s + t.debit - t.credit, 0);
               return (
-                <div key={g.id} className={`guest-card${activeGuest.id===g.id?' active':''}`} onClick={()=>{setActiveGuest(g);setActiveFolioId('A')}}>
+                <div key={g.id} className={`guest-card${activeGuest?.id===g.id?' active':''}`} onClick={()=>{setActiveGuest(g);}}>
                   <img className="gc-photo" src={g.photo} alt=""/>
                   <div className="gc-info">
                     <div className="gc-name">{g.name}</div>
@@ -510,7 +677,9 @@ const addCharge = async () => {
               const gTxs = txMap[g.id] || [];
               const bal = gTxs.reduce((s,t) => s + t.debit - t.credit, 0);
               return (
-                <div key={g.id} className={`guest-card${activeGuest.id===g.id?' active':''}`} onClick={()=>{setActiveGuest(g);setActiveFolioId('A')}}>
+                <div key={g.id} className={`guest-card${activeGuest.id===g.id?' active':''}`} onClick={()=>{setActiveGuest(g);
+
+                }}>
                   <img className="gc-photo" src={g.photo} alt=""/>
                   <div className="gc-info">
                     <div className="gc-name">{g.name}</div>
@@ -530,32 +699,32 @@ const addCharge = async () => {
             <div className="guest-hd">
               <div className="ghd-top">
                 <div className="ghd-left">
-                  <img className="ghd-photo" src={activeGuest.photo} alt=""/>
+                  <img className="ghd-photo" src={activeGuest?.photo} alt=""/>
                   <div>
-                    <div className="ghd-name">{activeGuest.name}</div>
+                    <div className="ghd-name">{activeGuest?.name}</div>
                     <div className="ghd-meta">
-                      <span>Room {activeGuest.room}</span>
+                      <span>Room {activeGuest?.room}</span>
                       <span style={{color:C.border2}}>·</span>
-                      <span>{activeGuest.type}</span>
+                      <span>{activeGuest?.type}</span>
                       <span style={{color:C.border2}}>·</span>
-                      <span>{activeGuest.adults} adults</span>
+                      <span>{activeGuest?.adults} adults</span>
                     </div>
                   </div>
                 </div>
                 <div className="ghd-right">
-                  <div className="ghd-res">{activeGuest.resId} · {activeGuest.source}</div>
-                  <span className={`status-pill ${activeGuest.status==='checkedin'?'sp-in':'sp-out'}`}>
-                    {activeGuest.status==='checkedin' ? '● Checked In' : '⇒ Checking Out'}
+                  <div className="ghd-res">{activeGuest?.resId} · {activeGuest?.source}</div>
+                  <span className={`status-pill ${activeGuest?.status==='checkedin'?'sp-in':'sp-out'}`}>
+                    {activeGuest?.status==='checkedin' ? '● Checked In' : '⇒ Checking Out'}
                   </span>
                 </div>
               </div>
               <div className="stay-chips">
                 {[
-                  ['Check-in', activeGuest.checkin],
-                  ['Check-out', activeGuest.checkout],
-                  ['Nights', activeGuest.nights],
-                  ['Room Rate', `₹${activeGuest.rate.toLocaleString('en-IN')}/n`],
-                  ['Room Total', `₹${(activeGuest.rate * activeGuest.nights).toLocaleString('en-IN')}`],
+                  ['Check-in', activeGuest?.checkin],
+                  ['Check-out', activeGuest?.checkout],
+                  ['Nights', activeGuest?.nights],
+                  ['Room Rate', `₹${(activeGuest?.rate || 0).toLocaleString('en-IN')}/n`],
+                  ['Room Total', `₹${((activeGuest?.rate || 0) * (activeGuest?.nights || 0)).toLocaleString('en-IN')}`],
                 ].map(([l,v]) => (
                   <div key={l} className="stay-chip">
                     <div className="sc-l">{l}</div>
@@ -573,17 +742,20 @@ const addCharge = async () => {
               <button className="act-btn ab-pay" onClick={()=>setModal('payment')}>
                 <span>✓</span> Record Payment
               </button>
-              <button className="act-btn ab-split">
-                <span>⊟</span> Split Folio
-              </button>
-              <button className="act-btn ab-transfer">
-                <span>⇄</span> Transfer Charges
-              </button>
+              <button className="act-btn ab-split" onClick={splitFolio}>
+  <span>⊟</span> Split Folio
+</button>
+              <button 
+  className="act-btn ab-transfer"
+  onClick={() => setModal('transfer')}
+>
+  <span>⇄</span> Transfer Charges
+</button>
               <div style={{flex:1}}/>
               <button className="act-btn" onClick={()=>setModal('invoice')}>
                 🖨 Print Invoice
               </button>
-              {activeGuest.status === 'checkout' && (
+              {activeGuest?.status === 'checkout' && (
                 <button className="act-btn ab-checkout">
                   ⇒ Settle & Checkout
                 </button>
@@ -591,21 +763,40 @@ const addCharge = async () => {
             </div>
 
             {/* Folio tabs */}
-            <div className="folio-tabs">
-              {allFolios.map(f => {
-                const fTxs = txs.filter(t=>t.folio===f);
-                return (
-                  <div key={f} className={`f-tab${activeFolioId===f?' on':''}`} onClick={()=>setActiveFolioId(f)}>
-                    Folio {f}
-                    <span className="f-tab-ct">{fTxs.length}</span>
-                  </div>
-                );
-              })}
-              <button className="f-tab-add" 
-              onClick={() => {
-  alert("Create new folio via backend API");
-}}> ADD</button>
-            </div>
+            {/* Folio tabs */}
+<div className="folio-tabs">
+  {allFolios.map(f => {
+    const fTxs = txMap[f] || [];
+
+    return (
+     <div
+  key={f}
+  className={`f-tab ${activeFolioId === f ? 'on' : ''}`}
+  onClick={() => setActiveFolioId(f)}   // ✅ move here
+>
+  <span>
+    Folio {f.slice(0,6)}
+  </span>
+
+  <span className="f-tab-ct">{fTxs.length}</span>
+
+  <button
+    className="f-delete"
+    onClick={(e) => {
+      e.stopPropagation();   // ✅ VERY IMPORTANT
+      deleteFolio(f);
+    }}
+  >
+    ❌
+  </button>
+</div>
+    );
+  })}
+
+  <button className="f-tab-add" onClick={createFolio}>
+    + ADD
+  </button>
+</div>
 
             {/* Ledger table */}
             <div className="ledger-wrap">
@@ -627,6 +818,7 @@ const addCharge = async () => {
                 return (
                   <div key={t.id} className={`tx-row${t.credit>0?' credit-row':''}${isPayment?' payment-row':''}`}>
                     <div>
+                      
                       <div className="tx-date">{t.date}</div>
                       <div className="tx-time">{t.time}</div>
                     </div>
@@ -640,8 +832,22 @@ const addCharge = async () => {
                     </div>
                     <div className="tx-debit" style={{color: t.debit>0 ? C.ink : C.ink5}}>{fmt(t.debit)}</div>
                     <div className="tx-credit" style={{color: t.credit>0 ? C.green : C.ink5}}>{fmt(t.credit)}</div>
+     
                     <div className="tx-bal" style={{color: t.running > 0 ? C.red : C.green}}>{fmt(t.running)}</div>
-                    <div className="tx-del" onClick={()=>deleteTx(t.id)}>✕</div>
+                                                       <div>
+    <input
+      type="checkbox"
+      checked={selectedTx.includes(t.id)}
+      onChange={() => {
+        setSelectedTx(prev =>
+          prev.includes(t.id)
+            ? prev.filter(id => id !== t.id)
+            : [...prev, t.id]
+        );
+      }}
+    />
+  </div><div className="tx-del" onClick={()=>deleteTx(t.id)}>✕</div>
+
                   </div>
                 );
               })}
@@ -671,7 +877,7 @@ const addCharge = async () => {
           <aside className="summary-col">
             <div className="sum-hd">
               <div className="sum-hd-t">Account Summary</div>
-              <div className="sum-hd-s">Folio {activeFolioId} · {activeGuest.name}</div>
+              <div className="sum-hd-s">Folio {activeFolioId} · {activeGuest?.name}</div>
             </div>
 
             {/* Balance card */}
@@ -687,8 +893,8 @@ const addCharge = async () => {
             <div className="sum-sec" style={{marginTop:14}}>
               <div className="sum-sec-t">Charge Summary</div>
               <div className="sum-row">
-                <span className="sr-l">Room ({activeGuest.nights} nights)</span>
-                <span className="sr-v">{fmtN(activeGuest.rate * activeGuest.nights)}</span>
+                <span className="sr-l">Room ({activeGuest?.nights} nights)</span>
+                <span className="sr-v">{fmtN(activeGuest?.rate * activeGuest?.nights)}</span>
               </div>
               {Object.entries(catTotals).filter(([k])=>k!=='room'&&k!=='tax').map(([k,v])=>(
                 <div key={k} className="sum-row">
@@ -809,6 +1015,65 @@ const addCharge = async () => {
             </div>
           </div>
         )}
+        {modal === 'transfer' && (
+  <div 
+    className="modal-overlay" 
+    onClick={e => e.target === e.currentTarget && setModal(null)}
+  >
+    <div className="add-modal">
+      
+      {/* Title */}
+      <div className="am-title">Transfer Charges</div>
+
+      {/* Select Target Folio */}
+      <div className="am-fld">
+        <div className="am-lbl">Select Target Folio</div>
+
+        <select
+          className="am-in"
+          value={targetFolio}
+          onChange={(e) => setTargetFolio(e.target.value)}
+        >
+          <option value="">Choose folio</option>
+          {allFolios
+            .filter(f => f !== activeFolioId)
+            .map(f => (
+              <option key={f} value={f}>
+                Folio {f.slice(0,6)}
+              </option>
+            ))}
+        </select>
+      </div>
+
+      {/* Selected Info */}
+      <div style={{
+        fontSize: 12,
+        color: "#666",
+        marginBottom: 8
+      }}>
+        Selected Charges: <strong>{selectedTx.length}</strong>
+      </div>
+
+      {/* Buttons */}
+      <div className="am-btns">
+        <button 
+          className="am-cancel" 
+          onClick={() => setModal(null)}
+        >
+          Cancel
+        </button>
+
+        <button 
+          className="am-submit"
+          onClick={transferCharges}
+        >
+          Transfer
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
 
         {/* ══ MODAL: ADD PAYMENT ══ */}
         {modal === 'payment' && (
@@ -863,15 +1128,15 @@ const addCharge = async () => {
                 <div className="inv-hd">
                   <div className="inv-hd-l">
                     <div className="label">Invoice To</div>
-                    <div className="val">{activeGuest.name}</div>
-                    <div style={{fontSize:12,color:C.ink3,marginTop:2}}>Room {activeGuest.room} — {activeGuest.type}</div>
+                    <div className="val">{activeGuest?.name}</div>
+                    <div style={{fontSize:12,color:C.ink3,marginTop:2}}>Room {activeGuest?.room || '-'} — {activeGuest?.type}</div>
                     <div style={{fontSize:12,color:C.ink3}}>{activeGuest.checkin} → {activeGuest.checkout} · {activeGuest.nights} nights</div>
                   </div>
                   <div style={{textAlign:'right'}}>
                     <div className="label" style={{fontSize:10,fontWeight:700,color:C.ink4,textTransform:'uppercase',letterSpacing:'.5px'}}>Invoice</div>
-                    <div className="inv-id">INV-{activeGuest.room}-{Math.floor(Math.random()*9000)+1000}</div>
+                    <div className="inv-id">INV-{activeGuest?.room}-{Math.floor(Math.random()*9000)+1000}</div>
                     <div style={{fontSize:11,color:C.ink4,fontFamily:'JetBrains Mono,monospace',marginTop:4}}>Date: {today()} 2026</div>
-                    <div style={{fontSize:11,color:C.ink4,fontFamily:'JetBrains Mono,monospace'}}>{activeGuest.resId}</div>
+                    <div style={{fontSize:11,color:C.ink4,fontFamily:'JetBrains Mono,monospace'}}>{activeGuest?.resId}</div>
                   </div>
                 </div>
 
@@ -916,4 +1181,6 @@ const addCharge = async () => {
       </div>
     </>
   );
+
 }
+

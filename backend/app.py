@@ -1286,35 +1286,108 @@ def update_housekeeping(id):
 
     return jsonify({"message": "Housekeeping updated"})
 
-# ✅ 1. GET FOLIO BY RESERVATION ID
-@app.route("/api/folios/<int:reservation_id>", methods=["GET"])
-def get_folio(reservation_id):
+
+@app.route("/api/guests", methods=["GET"])
+def get_guests():
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
 
-    # Get folio
     cursor.execute("""
-        SELECT id
-        FROM folios
-        WHERE reservation_id = %s
-    """, (reservation_id,))
+        SELECT 
+            reservation_id,
+            guestName,
+            roomType,
+            room_id,
+            status,
+            guests,
+            checkIn,
+            checkOut,
+            source
+        FROM reservations
+    """)
+
+    data = cursor.fetchall()
+
+    guests = []
+
+    for g in data:
+        # ✅ calculate nights
+        if g["checkIn"] and g["checkOut"]:
+            nights = (g["checkOut"] - g["checkIn"]).days
+            if nights <= 0:
+                nights = 1
+        else:
+            nights = 1
+
+        # ✅ dynamic pricing (example logic)
+        rate_map = {
+            "Deluxe": 3000,
+            "Suite": 5000,
+            "Standard": 2000
+        }
+        rate = rate_map.get(g["roomType"], 2000)
+
+        guests.append({
+            "id": g["reservation_id"],
+            "name": g["guestName"],
+            "room": g["room_id"]  or ""
+            ,
+            "type": g["roomType"],
+            "status": g["status"],
+            "adults": g["guests"],
+            "checkin": str(g["checkIn"]),
+            "checkout": str(g["checkOut"]),
+            "source": g["source"],
+            "nights": nights,
+            "rate": rate,
+            "roomTotal": rate * nights
+        })
+
+    cursor.close()
+    db.close()
+
+    return jsonify(guests)
+
+
+
+@app.route("/api/folios/<string:folio_id>", methods=["GET"])
+def get_folio(folio_id):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True, buffered=True)  # ✅ FIX
+
+    cursor.execute("""
+        SELECT 
+            f.id AS folio_id,
+            r.reservation_id,
+            r.room_id,
+            r.guests,
+            r.checkIn,
+            r.checkOut,
+            g.first_name,
+            g.last_name,
+            g.email,
+            g.phone
+        FROM folios f
+        LEFT JOIN reservations r ON f.reservation_id = r.reservation_id
+        LEFT JOIN guests g ON r.guest_id = g.guest_id
+        WHERE f.id = %s
+    """, (folio_id,))
+
     folio = cursor.fetchone()
 
     if not folio:
         return jsonify({"error": "Folio not found"}), 404
 
-    folio_id = folio["id"]
-
-    # Get charges
+    # ✅ Charges
     cursor.execute("""
-        SELECT id, amount, created_at
+        SELECT id, amount, description, created_at
         FROM ledger_entries
         WHERE folio_id = %s
         ORDER BY created_at
     """, (folio_id,))
     charges = cursor.fetchall()
 
-    # Get payments
+    # ✅ Payments
     cursor.execute("""
         SELECT payment_id, payment_method, payment_status, amount
         FROM payments
@@ -1322,13 +1395,10 @@ def get_folio(reservation_id):
     """, (folio_id,))
     payments = cursor.fetchall()
 
-    # Totals
     total_charges = sum(float(c["amount"]) for c in charges)
-    total_payments = sum(float(p["amount"]) for p in payments if p["payment_status"] == "Completed")
-    balance = total_charges - total_payments
-
-    cursor.close()
-    db.close()
+    total_payments = sum(
+        float(p["amount"]) for p in payments if p["payment_status"] == "Completed"
+    )
 
     return jsonify({
         "folioId": folio_id,
@@ -1337,12 +1407,53 @@ def get_folio(reservation_id):
         "summary": {
             "totalCharges": total_charges,
             "totalPayments": total_payments,
-            "balance": balance
+            "balance": total_charges - total_payments
         }
     })
+@app.route("/api/folios", methods=["POST"])
+def create_folio():
+    data = request.json
+    reservation_id = data.get("reservation_id")
 
+    db = get_db_connection()
+    cursor = db.cursor()
 
-# ✅ 2. ADD CHARGE
+    folio_id = str(uuid.uuid4())
+
+    cursor.execute("""
+        INSERT INTO folios (id, tenant_id, reservation_id, status, currency)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (
+        folio_id,
+        "tenant1",     # ✅ REQUIRED
+        reservation_id,
+        "open",        # ✅ good practice
+        "INR"          # ✅ good practice
+    ))
+
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({
+        "folioId": folio_id
+    })
+@app.route("/api/folios/by-reservation/<int:reservation_id>", methods=["GET"])
+def get_folios_by_reservation(reservation_id):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True, buffered=True)
+
+    cursor.execute("""
+        SELECT id FROM folios
+        WHERE reservation_id = %s
+    """, (reservation_id,))
+
+    folios = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+
+    return jsonify(folios)
 @app.route("/api/folios/<string:folio_id>/charges", methods=["POST"])
 def add_charge(folio_id):
     data = request.json
@@ -1350,17 +1461,27 @@ def add_charge(folio_id):
     db = get_db_connection()
     cursor = db.cursor()
 
+    # ✅ Get any valid ledger account
+    cursor.execute("SELECT id FROM ledger_accounts LIMIT 1")
+    account = cursor.fetchone()
+
+    if not account:
+        return jsonify({"error": "No ledger account found"}), 400
+
+    ledger_account_id = account[0]
+
     cursor.execute("""
         INSERT INTO ledger_entries 
-        (id, folio_id, tenant_id, ledger_account_id, amount, currency)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        (id, folio_id, tenant_id, ledger_account_id, amount, currency, description)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
         str(uuid.uuid4()),
         folio_id,
-        "tenant1",        # dummy (adjust later)
-        "ledger1",        # dummy (adjust later)
+        "tenant1",
+        ledger_account_id,  # ✅ FIXED
         data["amount"],
-        "INR"
+        "INR",
+        data.get("description", "Room Charge")
     ))
 
     db.commit()
@@ -1368,9 +1489,6 @@ def add_charge(folio_id):
     db.close()
 
     return jsonify({"message": "Charge added successfully"})
-
-
-# ✅ 3. ADD PAYMENT
 @app.route("/api/folios/<string:folio_id>/payments", methods=["POST"])
 def add_payment(folio_id):
     data = request.json
@@ -1393,21 +1511,17 @@ def add_payment(folio_id):
     db.close()
 
     return jsonify({"message": "Payment added successfully"})
-
-
-# ✅ 4. GENERATE INVOICE
 @app.route("/api/folios/<string:folio_id>/invoice", methods=["POST"])
 def generate_invoice(folio_id):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
 
     cursor.execute("""
-        SELECT amount 
-        FROM ledger_entries
+        SELECT amount FROM ledger_entries
         WHERE folio_id = %s
     """, (folio_id,))
+    
     charges = cursor.fetchall()
-
     total = sum(float(c["amount"]) for c in charges)
 
     cursor.execute("""
@@ -1424,6 +1538,98 @@ def generate_invoice(folio_id):
         "total": total,
         "status": "generated"
     })
+
+
+@app.route("/api/folios/split", methods=["POST"])
+def split_folio():
+    data = request.json
+
+    from_folio = data["fromFolioId"]
+    to_folio = data["toFolioId"]
+    entry_ids = data["entryIds"]   # list of ledger entry IDs
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    try:
+        for entry_id in entry_ids:
+            cursor.execute("""
+                UPDATE ledger_entries
+                SET folio_id = %s
+                WHERE id = %s AND folio_id = %s
+            """, (to_folio, entry_id, from_folio))
+
+        db.commit()
+
+        return jsonify({"message": "Split successful"})
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        db.close()
+@app.route("/api/folios/<string:folio_id>", methods=["DELETE"])
+def delete_folio(folio_id):
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("DELETE FROM folios WHERE id = %s", (folio_id,))
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        print("ERROR:", e)
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        db.close()
+
+    return jsonify({"message": "Folio deleted"})
+
+
+
+@app.route("/api/folios/transfer-charges", methods=["POST"])
+def transfer_charges():
+    data = request.json
+
+    from_folio = data.get("fromFolioId")
+    to_folio = data.get("toFolioId")
+    tx_ids = data.get("txIds", [])
+
+    if not from_folio or not to_folio or not tx_ids:
+        return jsonify({"error": "Missing data"}), 400
+
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    try:
+        # ✅ move charges
+        format_strings = ','.join(['%s'] * len(tx_ids))
+        cursor.execute(f"""
+            UPDATE ledger_entries
+            SET folio_id = %s
+            WHERE id IN ({format_strings})
+            AND folio_id = %s
+        """, [to_folio, *tx_ids, from_folio])
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        print("ERROR:", e)
+        return jsonify({"error": "Transfer failed"}), 500
+
+    finally:
+        cursor.close()
+        db.close()
+
+    return jsonify({"message": "Charges transferred successfully"})
+
+
 # ✅ RUN SERVER
 if __name__ == "__main__":
     app.run(debug=True)
