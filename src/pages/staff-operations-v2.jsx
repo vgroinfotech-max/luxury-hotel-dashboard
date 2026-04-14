@@ -185,7 +185,31 @@ const SHIFT_SCHEDULE={
 const CSS=`
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
+.shell, .body, .main, .content {
+  min-width: 0 !important;
+}
+
+.main {
+  width: 100% !important;
+  flex: 1 !important;
+}
+
+.content {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+  .main{
+  min-width:0;
+}
+.content > * {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.content{
+  min-width:0;
+}
+html,body{height:100%;overflow-x:hidden}
 body{font-family:'Outfit',sans-serif;background:${C.bg};color:${C.t1};font-size:13px;line-height:1.5}
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px}
@@ -204,7 +228,7 @@ body{font-family:'Outfit',sans-serif;background:${C.bg};color:${C.t1};font-size:
 .tbtn-gold{background:${C.goldD};border-color:${C.gold}!important;color:${C.goldL}}
 .tbtn-gold:hover{background:#a07810}
 /* body */
-.body{display:grid;grid-template-columns:220px 1fr;height:100%;overflow:hidden;min-height:0}
+.body{display:grid;grid-template-columns:220px calc(100vw - 220px);height:100%;overflow:hidden;min-height:0}
 /* sidebar */
 .sidebar{background:${C.navy};border-right:1px solid ${C.navyM};display:flex;flex-direction:column;overflow:hidden}
 .sb-hd{padding:16px 14px 10px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
@@ -245,7 +269,7 @@ body{font-family:'Outfit',sans-serif;background:${C.bg};color:${C.t1};font-size:
 .fchip.on{background:${C.navy};border-color:${C.navy};color:#F5EDDA}
 .content{flex:1;overflow-y:auto;min-height:0;padding:20px 22px}
 /* staff cards */
-.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));width:100%;gap:12px}
 .staff-card{background:${C.white};border:1px solid ${C.border};border-radius:13px;padding:16px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
 .staff-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.09);transform:translateY(-2px);border-color:${C.borderL}}
 .staff-card.selected{border-color:${C.gold};box-shadow:0 0 0 2px ${C.gold}30}
@@ -1185,7 +1209,7 @@ function ProfileDrawer({staff,onClose,fireToast}){
 }
 
 /* ═══════════════════ MAIN APP ════════════════════════════════ */
-export default function Staff(){
+export default function StaffOperations(){
   const[tab,setTab]=useState("directory");
   const[selected,setSelected]=useState(null);
   const[search,setSearch]=useState("");
